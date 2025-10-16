@@ -39,13 +39,33 @@ async_session_maker = sessionmaker(
 async def init_db():
     """Initialize database tables."""
     async with async_engine.begin() as conn:
-        # Create pgvector extension if not exists
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        logger.info("pgvector extension created")
+        # Try to create pgvector extension
+        try:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            logger.info("✓ pgvector extension is available")
+        except Exception as e:
+            logger.error("=" * 80)
+            logger.error("CRITICAL ERROR: pgvector extension is not available!")
+            logger.error("=" * 80)
+            logger.error("The database you're connected to does not have pgvector installed.")
+            logger.error("")
+            logger.error("In Railway Dashboard:")
+            logger.error("1. Delete your current PostgreSQL service")
+            logger.error("2. Click 'New' → 'Database' → Select 'PostgreSQL' with pgvector template")
+            logger.error("3. Copy the new DATABASE_URL from the pgvector service")
+            logger.error("4. Update your shared variables with the new DATABASE_URL")
+            logger.error("")
+            logger.error(f"Current DATABASE_URL: {settings.database_url[:50]}...")
+            logger.error("=" * 80)
+            raise RuntimeError(
+                "pgvector extension is required but not available. "
+                "Please use a PostgreSQL database with pgvector installed. "
+                "In Railway, create a new service using the pgvector template."
+            ) from e
 
         # Create all tables using run_sync
         await conn.run_sync(SQLModel.metadata.create_all)
-        logger.info("Database tables created successfully")
+        logger.info("✓ Database tables created successfully")
 
 
 async def close_db():
