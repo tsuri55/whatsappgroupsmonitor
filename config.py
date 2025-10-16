@@ -13,7 +13,11 @@ class Settings(BaseSettings):
 
     # Database Configuration
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/whatsapp_monitor"
-    database_sync_url: str = "postgresql://postgres:postgres@localhost:5432/whatsapp_monitor"
+
+    @property
+    def database_sync_url(self) -> str:
+        """Convert async database URL to sync version for migrations."""
+        return self.database_url.replace("postgresql+asyncpg://", "postgresql://")
 
     # Google Gemini Configuration
     google_api_key: str
