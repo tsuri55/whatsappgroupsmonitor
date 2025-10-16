@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -15,14 +15,6 @@ logger = logging.getLogger(__name__)
 # Async engine for application use
 async_engine = create_async_engine(
     settings.database_url,
-    echo=settings.log_level == "DEBUG",
-    future=True,
-    pool_pre_ping=True,
-)
-
-# Sync engine for Alembic migrations
-sync_engine = create_engine(
-    settings.database_sync_url,
     echo=settings.log_level == "DEBUG",
     future=True,
     pool_pre_ping=True,
