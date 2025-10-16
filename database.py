@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 from sqlmodel import SQLModel, create_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -38,8 +39,12 @@ async_session_maker = sessionmaker(
 async def init_db():
     """Initialize database tables."""
     async with async_engine.begin() as conn:
-        # Create pgvector extension
-        await conn.execute(SQLModel.metadata.create_all(bind=conn))
+        # Create pgvector extension if not exists
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        logger.info("pgvector extension created")
+
+        # Create all tables using run_sync
+        await conn.run_sync(SQLModel.metadata.create_all)
         logger.info("Database tables created successfully")
 
 
