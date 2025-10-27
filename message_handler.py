@@ -42,32 +42,59 @@ class MessageHandler:
     async def process_message(self, message_data: dict):
         """Process incoming WhatsApp message."""
         try:
+            logger.debug("🔄 Processing message data...")
+
             # Parse message data
             wa_message = self._parse_message_data(message_data)
             if not wa_message:
+                logger.warning("⚠️ Message parsing returned None, skipping")
                 return
+
+            # Log parsed message details
+            if wa_message.group_jid:
+                logger.info(
+                    f"✅ Parsed GROUP message: "
+                    f"sender={wa_message.sender_jid}, "
+                    f"group={wa_message.group_jid}, "
+                    f"content='{wa_message.content[:100]}'"
+                )
+            else:
+                logger.info(
+                    f"✅ Parsed DIRECT message: "
+                    f"sender={wa_message.sender_jid}, "
+                    f"content='{wa_message.content[:100]}'"
+                )
 
             # Skip messages from self
             if wa_message.sender_jid == self._my_jid:
-                logger.debug("Skipping message from self")
+                logger.debug(f"⏭️ Skipping message from self (my_jid={self._my_jid})")
                 return
 
             # Check if message is a command (only for direct messages, not group messages)
             if not wa_message.group_jid and self._command_handler:
+                logger.info(
+                    f"🤖 Checking if direct message is a command: '{wa_message.content}' "
+                    f"from {wa_message.sender_jid}"
+                )
                 is_command = await self._command_handler.process_command(
                     wa_message.sender_jid, wa_message.content
                 )
                 if is_command:
-                    logger.info(f"Processed command from {wa_message.sender_jid}")
+                    logger.info(f"✅ Command processed successfully from {wa_message.sender_jid}")
                     return  # Don't save command messages
+                else:
+                    logger.debug(f"ℹ️ Not a command, treating as regular direct message")
 
             # Save message to database (only group messages or non-command DMs)
             if wa_message.group_jid:
+                logger.debug(f"💾 Saving group message to database...")
                 async with get_session() as session:
                     await self._save_message(session, wa_message)
+            else:
+                logger.debug("ℹ️ Direct message (non-command) - not saving to database")
 
         except Exception as e:
-            logger.error(f"Error processing message: {e}", exc_info=True)
+            logger.error(f"❌ Error processing message: {e}", exc_info=True)
 
     def _parse_message_data(self, data: dict) -> WhatsAppMessage | None:
         """Parse raw message data into WhatsAppMessage."""

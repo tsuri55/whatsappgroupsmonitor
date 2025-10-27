@@ -28,7 +28,27 @@ class WebhookServer:
         """Handle incoming message webhook."""
         try:
             data = await request.json()
-            logger.debug(f"Received webhook: {data}")
+
+            # Extract key info for logging
+            info = data.get("info", {})
+            message = data.get("message", {})
+            sender_jid = info.get("messageSource", {}).get("senderJID", "unknown")
+            group_jid = info.get("messageSource", {}).get("groupJID", "")
+
+            # Get message text
+            content = ""
+            if "conversation" in message:
+                content = message["conversation"]
+            elif "extendedTextMessage" in message:
+                content = message["extendedTextMessage"].get("text", "")
+
+            # Log detailed webhook receipt
+            if group_jid:
+                logger.info(f"📩 WEBHOOK RECEIVED - Group message from {sender_jid} in {group_jid}: '{content[:100]}'")
+            else:
+                logger.info(f"📩 WEBHOOK RECEIVED - Direct message from {sender_jid}: '{content[:100]}'")
+
+            logger.debug(f"Full webhook data: {data}")
 
             # Process message asynchronously (don't block webhook response)
             request.app.loop.create_task(self.message_handler.process_message(data))
@@ -36,7 +56,7 @@ class WebhookServer:
             return web.json_response({"status": "ok"})
 
         except Exception as e:
-            logger.error(f"Error handling webhook: {e}", exc_info=True)
+            logger.error(f"❌ Error handling webhook: {e}", exc_info=True)
             return web.json_response({"status": "error", "message": str(e)}, status=500)
 
     async def _health_check(self, request: web.Request) -> web.Response:

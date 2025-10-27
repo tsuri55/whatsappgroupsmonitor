@@ -50,45 +50,58 @@ class Application:
 
     async def start(self):
         """Start the application."""
-        logger.info("Starting WhatsApp Groups Monitor...")
+        logger.info("=" * 80)
+        logger.info("🚀 Starting WhatsApp Groups Monitor...")
+        logger.info("=" * 80)
 
         try:
             # Initialize database
-            logger.info("Initializing database...")
+            logger.info("1️⃣ Initializing database...")
             await init_db()
+            logger.info("✅ Database initialized")
 
             # Start message handler
-            logger.info("Starting message handler...")
+            logger.info("2️⃣ Starting message handler...")
             await self.message_handler.start()
+            logger.info("✅ Message handler started")
 
             # Register command handler with message handler
+            logger.info("3️⃣ Registering command handler...")
             self.message_handler.set_command_handler(self.command_handler)
+            logger.info("✅ Command handler registered")
 
             # Sync existing groups
-            logger.info("Syncing existing WhatsApp groups...")
+            logger.info("4️⃣ Syncing existing WhatsApp groups...")
             await sync_existing_groups(self.whatsapp_client)
+            logger.info("✅ Groups synced")
 
             # Start webhook server
-            logger.info("Starting webhook server...")
+            logger.info("5️⃣ Starting webhook server on port 8000...")
             await self.webhook_server.start()
+            logger.info("✅ Webhook server started - listening for messages at POST /webhook/message")
 
             # Start scheduler
-            logger.info("Starting scheduler...")
+            logger.info("6️⃣ Starting scheduler...")
             self.scheduler.start()
+            logger.info("✅ Scheduler started")
 
-            logger.info("✓ WhatsApp Groups Monitor is running!")
+            logger.info("=" * 80)
+            logger.info("✅ WhatsApp Groups Monitor is running!")
+            logger.info("=" * 80)
             logger.info(
-                f"✓ Daily summaries scheduled at {settings.summary_schedule_hour:02d}:00 "
+                f"📅 Daily summaries scheduled at {settings.summary_schedule_hour:02d}:00 "
                 f"{settings.summary_schedule_timezone}"
             )
-            logger.info(f"✓ Summary recipient: {settings.summary_recipient_phone}")
-            logger.info(f"✓ On-demand summaries: Send 'sikum' to {settings.summary_recipient_phone}")
+            logger.info(f"📱 Summary recipient: {settings.summary_recipient_phone}")
+            logger.info(f"🤖 On-demand summaries: Send 'sikum' to the bot from {settings.summary_recipient_phone}")
+            logger.info(f"🌐 Webhook endpoint: http://0.0.0.0:8000/webhook/message")
+            logger.info("=" * 80)
 
             # Wait for shutdown signal
             await self._shutdown_event.wait()
 
         except Exception as e:
-            logger.error(f"Error during startup: {e}", exc_info=True)
+            logger.error(f"❌ Error during startup: {e}", exc_info=True)
             raise
 
     async def stop(self):

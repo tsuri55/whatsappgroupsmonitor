@@ -41,6 +41,9 @@ class SummaryGenerator:
     )
     async def generate_summary(self, group_name: str, messages_text: str) -> str:
         """Generate summary for a group's messages."""
+        logger.info(f"🤖 AI GENERATION - Starting for group '{group_name}'")
+        logger.debug(f"🤖 Messages text length: {len(messages_text)} characters")
+
         system_prompt = f"""
 Write a quick summary of what happened in the chat group since the last summary.
 
@@ -57,45 +60,55 @@ ONLY answer with the summary, no other text.
 """
 
         try:
+            logger.debug(f"🤖 Calling Gemini API for group '{group_name}'...")
             response = await self.model.generate_content_async(
                 f"{system_prompt}\n\nChat Messages:\n{messages_text}"
             )
             summary = response.text.strip()
-            logger.info(f"Generated summary for {group_name}")
+            logger.info(f"✅ AI GENERATION SUCCESS - Generated {len(summary)} chars for '{group_name}'")
+            logger.debug(f"Summary preview: {summary[:200]}...")
             return summary
 
         except Exception as e:
-            logger.error(f"Failed to generate summary for {group_name}: {e}")
+            logger.error(f"❌ AI GENERATION FAILED for {group_name}: {e}")
             raise
 
     async def summarize_group(self, session: AsyncSession, group: Group) -> bool:
         """Summarize a single group and return success status."""
         try:
+            logger.debug(f"📊 Summarizing group: {group.group_name}")
+
             # Get my JID to exclude own messages
             my_jid = await self.whatsapp.get_my_jid()
+            logger.debug(f"🤖 Bot JID (to exclude): {my_jid}")
 
             # Get messages since last summary
+            logger.debug(f"🔍 Fetching messages since last summary for {group.group_name}...")
             messages = await group.get_messages_since_last_summary(session, exclude_sender_jid=my_jid)
 
             # Check if we have any messages
             if len(messages) == 0:
-                logger.info(f"No messages to summarize in group {group.group_name}")
+                logger.info(f"ℹ️ No messages to summarize in group {group.group_name}")
                 return False
+
+            logger.info(f"📬 Found {len(messages)} messages in {group.group_name}")
 
             # Limit messages if too many
             if len(messages) > settings.max_messages_per_summary:
                 logger.warning(
-                    f"Too many messages in {group.group_name}, "
+                    f"⚠️ Too many messages in {group.group_name} ({len(messages)}), "
                     f"limiting to {settings.max_messages_per_summary}"
                 )
                 messages = messages[-settings.max_messages_per_summary :]
 
             # Format messages for LLM
+            logger.debug(f"📝 Formatting {len(messages)} messages for AI...")
             messages_text = format_messages_for_summary(messages)
 
             # Generate summary
             start_time = messages[0].timestamp
             end_time = messages[-1].timestamp
+            logger.debug(f"⏰ Message time range: {start_time} to {end_time}")
 
             try:
                 summary = await self.generate_summary(group.group_name or "group", messages_text)
@@ -141,25 +154,34 @@ ONLY answer with the summary, no other text.
 
     async def generate_and_send_daily_summaries(self):
         """Generate summaries for all managed groups and send consolidated summary."""
-        logger.info("Starting daily summary generation...")
+        logger.info("=" * 80)
+        logger.info("📊 DAILY SUMMARY GENERATION STARTED")
+        logger.info("=" * 80)
 
         async with get_session() as session:
             # Get all managed groups
+            logger.debug("🔍 Fetching managed groups from database...")
             result = await session.exec(select(Group).where(Group.managed == True))  # noqa: E712
             groups = list(result.all())
 
             if not groups:
-                logger.warning("No managed groups found")
+                logger.warning("⚠️ No managed groups found in database")
                 return
 
-            logger.info(f"Processing {len(groups)} groups...")
+            logger.info(f"📋 Found {len(groups)} managed groups to process:")
+            for idx, group in enumerate(groups, 1):
+                logger.info(f"  {idx}. {group.group_name} ({group.group_jid})")
 
             # Generate summaries for each group
             summaries_data = []
-            for group in groups:
+            logger.info("")
+            logger.info("🔄 Processing each group...")
+            for idx, group in enumerate(groups, 1):
+                logger.info(f"\n--- Group {idx}/{len(groups)}: {group.group_name} ---")
                 success = await self.summarize_group(session, group)
 
                 if success:
+                    logger.debug(f"✅ Summary generated for {group.group_name}, fetching from database...")
                     # Get the latest summary for this group
                     summary_result = await session.exec(
                         select(SummaryLog)
@@ -178,24 +200,37 @@ ONLY answer with the summary, no other text.
                                 "summary_log_id": summary_log.id,
                             }
                         )
+                        logger.info(f"✅ Added summary to send list ({summary_log.message_count} messages)")
+                    else:
+                        logger.warning(f"⚠️ Summary log not found or empty for {group.group_name}")
+                else:
+                    logger.info(f"⏭️ No summary generated for {group.group_name} (insufficient messages)")
+
+            logger.info("")
+            logger.info(f"📊 Summary generation complete: {len(summaries_data)}/{len(groups)} groups have summaries")
 
             if not summaries_data:
-                logger.info("No summaries generated (all groups below minimum threshold)")
+                logger.info("ℹ️ No summaries to send (all groups had insufficient messages)")
                 return
 
             # Create consolidated summary message
+            logger.info("")
+            logger.info("📝 Formatting consolidated summary...")
             consolidated_summary = self._format_consolidated_summary(summaries_data)
+            logger.debug(f"📝 Consolidated summary length: {len(consolidated_summary)} characters")
 
             # Send to recipient
             try:
                 recipient_phone = format_phone_number(settings.summary_recipient_phone)
+                logger.info(f"📤 Sending consolidated summary to {recipient_phone}...")
                 await self.whatsapp.send_message(
                     SendMessageRequest(phone=recipient_phone, message=consolidated_summary)
                 )
 
-                logger.info(f"Sent daily summary to {recipient_phone}")
+                logger.info(f"✅ Successfully sent daily summary to {recipient_phone}")
 
                 # Mark all summaries as sent
+                logger.debug("💾 Marking summaries as sent in database...")
                 for summary_data in summaries_data:
                     summary_result = await session.exec(
                         select(SummaryLog).where(SummaryLog.id == summary_data["summary_log_id"])
@@ -206,16 +241,20 @@ ONLY answer with the summary, no other text.
                         session.add(summary_log)
 
                 # Update last_summary_sync for all groups
+                logger.debug("💾 Updating last_summary_sync timestamps...")
                 for group in groups:
                     group.last_summary_sync = datetime.now()
                     session.add(group)
 
                 await session.commit()
+                logger.info("✅ Database updated successfully")
 
             except Exception as e:
-                logger.error(f"Failed to send daily summary: {e}", exc_info=True)
+                logger.error(f"❌ Failed to send daily summary: {e}", exc_info=True)
 
-        logger.info("Daily summary generation completed")
+        logger.info("=" * 80)
+        logger.info("📊 DAILY SUMMARY GENERATION COMPLETED")
+        logger.info("=" * 80)
 
     def _format_consolidated_summary(self, summaries_data: list[dict]) -> str:
         """Format consolidated summary message."""
