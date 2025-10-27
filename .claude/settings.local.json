@@ -12,7 +12,8 @@
       "Bash(git rm:*)",
       "WebFetch(domain:github.com)",
       "Bash(curl:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:green-api.com)"
     ],
     "deny": [],
     "ask": []

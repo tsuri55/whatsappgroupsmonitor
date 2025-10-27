@@ -10,10 +10,10 @@ import structlog
 from commands import CommandHandler
 from config import settings
 from database import close_db, init_db
-from message_handler import MessageHandler, sync_existing_groups
+from green_api_client import GreenAPIClient
+from message_handler import MessageHandler
 from scheduler import SummaryScheduler
 from summarizer import SummaryGenerator
-from webhook import WebhookServer
 from whatsapp import WhatsAppClient
 
 # Configure structured logging
@@ -41,15 +41,13 @@ class Application:
 
     def __init__(self):
         """Initialize application."""
-        # Get port from environment (Railway sets PORT env var)
-        port = int(os.getenv("PORT", "8000"))
-
-        self.whatsapp_client = WhatsAppClient()
+        # Initialize core components
+        self.whatsapp_client = WhatsAppClient()  # Keep for backwards compatibility with scheduler
         self.message_handler = MessageHandler(self.whatsapp_client)
+        self.green_api_client = GreenAPIClient(self.message_handler)
         self.summary_generator = SummaryGenerator(self.whatsapp_client)
         self.command_handler = CommandHandler(self.whatsapp_client, self.summary_generator)
         self.scheduler = SummaryScheduler(self.whatsapp_client)
-        self.webhook_server = WebhookServer(self.message_handler, port=port)
         self._shutdown_event = asyncio.Event()
 
     async def start(self):
@@ -74,19 +72,13 @@ class Application:
             self.message_handler.set_command_handler(self.command_handler)
             logger.info("✅ Command handler registered")
 
-            # Sync existing groups
-            logger.info("4️⃣ Syncing existing WhatsApp groups...")
-            await sync_existing_groups(self.whatsapp_client)
-            logger.info("✅ Groups synced")
-
-            # Start webhook server
-            port = self.webhook_server.port
-            logger.info(f"5️⃣ Starting webhook server on port {port}...")
-            await self.webhook_server.start()
-            logger.info(f"✅ Webhook server started - listening for messages at POST /webhook/message on port {port}")
+            # Start Green API notification receiver
+            logger.info("4️⃣ Starting Green API notification receiver...")
+            await self.green_api_client.start_receiving()
+            logger.info("✅ Green API receiver started - listening for messages")
 
             # Start scheduler
-            logger.info("6️⃣ Starting scheduler...")
+            logger.info("5️⃣ Starting scheduler...")
             self.scheduler.start()
             logger.info("✅ Scheduler started")
 
@@ -99,7 +91,7 @@ class Application:
             )
             logger.info(f"📱 Summary recipient: {settings.summary_recipient_phone}")
             logger.info(f"🤖 On-demand summaries: Send 'sikum' to the bot from {settings.summary_recipient_phone}")
-            logger.info(f"🌐 Webhook endpoint: http://0.0.0.0:{port}/webhook/message")
+            logger.info(f"🟢 Green API Instance: {settings.green_api_instance_id}")
             logger.info("=" * 80)
 
             # Wait for shutdown signal
@@ -116,8 +108,8 @@ class Application:
         # Stop scheduler
         self.scheduler.stop()
 
-        # Stop webhook server
-        await self.webhook_server.stop()
+        # Stop Green API client
+        self.green_api_client.stop()
 
         # Stop message handler
         await self.message_handler.stop()

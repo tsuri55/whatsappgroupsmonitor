@@ -7,9 +7,13 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # WhatsApp API Configuration
+    # WhatsApp API Configuration (legacy - can be removed if using Green API)
     whatsapp_api_url: str = "http://localhost:3000"
     whatsapp_api_key: str = "your_api_key_here"
+
+    # Green API Configuration
+    green_api_instance_id: str = ""
+    green_api_token: str = ""
 
     # Database Configuration
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/whatsapp_monitor"
