@@ -77,12 +77,9 @@ ONLY answer with the summary, no other text.
             # Get messages since last summary
             messages = await group.get_messages_since_last_summary(session, exclude_sender_jid=my_jid)
 
-            # Check if we have enough messages
-            if len(messages) < settings.minimum_messages_for_summary:
-                logger.info(
-                    f"Not enough messages to summarize in group {group.group_name} "
-                    f"({len(messages)} < {settings.minimum_messages_for_summary})"
-                )
+            # Check if we have any messages
+            if len(messages) == 0:
+                logger.info(f"No messages to summarize in group {group.group_name}")
                 return False
 
             # Limit messages if too many
