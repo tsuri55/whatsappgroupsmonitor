@@ -20,6 +20,10 @@ class CommandHandler:
         # Command keywords (case-insensitive)
         self.commands = {
             "sikum": self._handle_sikum_command,
+            "/summarize": self._handle_sikum_command,
+            "/summary": self._handle_sikum_command,
+            "summary": self._handle_sikum_command,
+            "summarize": self._handle_sikum_command,
         }
 
         logger.info(f"Command handler initialized. Authorized user: {self.authorized_phone}")
