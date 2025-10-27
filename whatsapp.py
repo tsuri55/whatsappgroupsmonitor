@@ -45,7 +45,7 @@ class WhatsAppClient:
         self.api_key = api_key or settings.whatsapp_api_key
         self.client = httpx.AsyncClient(
             base_url=self.api_url,
-            headers={"Authorization": f"Bearer {self.api_key}"},
+            headers={"Authorization": self.api_key},
             timeout=30.0,
         )
         self._my_jid: Optional[str] = None
