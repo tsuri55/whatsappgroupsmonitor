@@ -1,6 +1,7 @@
 """Main application entry point."""
 import asyncio
 import logging
+import os
 import signal
 import sys
 
@@ -40,12 +41,15 @@ class Application:
 
     def __init__(self):
         """Initialize application."""
+        # Get port from environment (Railway sets PORT env var)
+        port = int(os.getenv("PORT", "8000"))
+
         self.whatsapp_client = WhatsAppClient()
         self.message_handler = MessageHandler(self.whatsapp_client)
         self.summary_generator = SummaryGenerator(self.whatsapp_client)
         self.command_handler = CommandHandler(self.whatsapp_client, self.summary_generator)
         self.scheduler = SummaryScheduler(self.whatsapp_client)
-        self.webhook_server = WebhookServer(self.message_handler)
+        self.webhook_server = WebhookServer(self.message_handler, port=port)
         self._shutdown_event = asyncio.Event()
 
     async def start(self):
@@ -76,9 +80,10 @@ class Application:
             logger.info("✅ Groups synced")
 
             # Start webhook server
-            logger.info("5️⃣ Starting webhook server on port 8000...")
+            port = self.webhook_server.port
+            logger.info(f"5️⃣ Starting webhook server on port {port}...")
             await self.webhook_server.start()
-            logger.info("✅ Webhook server started - listening for messages at POST /webhook/message")
+            logger.info(f"✅ Webhook server started - listening for messages at POST /webhook/message on port {port}")
 
             # Start scheduler
             logger.info("6️⃣ Starting scheduler...")
@@ -94,7 +99,7 @@ class Application:
             )
             logger.info(f"📱 Summary recipient: {settings.summary_recipient_phone}")
             logger.info(f"🤖 On-demand summaries: Send 'sikum' to the bot from {settings.summary_recipient_phone}")
-            logger.info(f"🌐 Webhook endpoint: http://0.0.0.0:8000/webhook/message")
+            logger.info(f"🌐 Webhook endpoint: http://0.0.0.0:{port}/webhook/message")
             logger.info("=" * 80)
 
             # Wait for shutdown signal
