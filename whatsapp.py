@@ -79,9 +79,12 @@ class WhatsAppClient:
     async def get_groups(self) -> list[dict[str, Any]]:
         """Get all groups the account is part of."""
         try:
-            response = await self.client.get("/groups")
+            response = await self.client.get("/user/my/groups")
             response.raise_for_status()
-            groups = response.json()
+            data = response.json()
+
+            # The API returns {data: [...groups...]}
+            groups = data.get("data", []) if isinstance(data, dict) else data
             logger.info(f"Retrieved {len(groups)} groups")
             return groups
         except httpx.HTTPError as e:
