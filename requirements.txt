@@ -16,7 +16,7 @@ google-generativeai==0.8.3
 # WhatsApp Client
 httpx==0.27.2
 aiohttp==3.10.10
-whatsapp-api-client-python==0.0.118
+whatsapp-api-client-python==0.0.49
 
 # Scheduling
 apscheduler==3.10.4
