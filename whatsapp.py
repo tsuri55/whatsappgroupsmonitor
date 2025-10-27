@@ -100,12 +100,24 @@ class WhatsAppClient:
             return self._my_jid
 
         try:
-            response = await self.client.get("/user/info")
+            # Try the app info endpoint instead
+            response = await self.client.get("/app/devices")
             response.raise_for_status()
             data = response.json()
-            self._my_jid = data.get("jid", "")
-            logger.info(f"My JID: {self._my_jid}")
+
+            # Extract JID from devices list
+            if isinstance(data, list) and len(data) > 0:
+                device = data[0]
+                self._my_jid = device.get("device", "")
+                logger.info(f"My JID: {self._my_jid}")
+                return self._my_jid
+
+            # Fallback: if no JID found, use a placeholder
+            # The app will still work for sending messages
+            logger.warning("Could not retrieve JID from API, using placeholder")
+            self._my_jid = "bot@s.whatsapp.net"
             return self._my_jid
+
         except httpx.HTTPError as e:
             logger.error(f"Failed to get user info: {e}")
             raise
