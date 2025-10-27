@@ -3,7 +3,7 @@ import logging
 
 from config import settings
 from summarizer import SummaryGenerator
-from whatsapp import WhatsAppClient, normalize_jid
+from whatsapp import normalize_jid
 
 logger = logging.getLogger(__name__)
 
@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     """Handle bot commands from users."""
 
-    def __init__(self, whatsapp_client: WhatsAppClient, summary_generator: SummaryGenerator):
+    def __init__(self, green_api_client, summary_generator: SummaryGenerator):
         """Initialize command handler."""
-        self.whatsapp = whatsapp_client
+        self.green_api_client = green_api_client
         self.summary_generator = summary_generator
         self.authorized_phone = normalize_jid(settings.summary_recipient_phone)
 
@@ -73,14 +73,10 @@ class CommandHandler:
 
         try:
             # Send acknowledgment
-            from whatsapp import SendMessageRequest
-
             logger.info(f"📤 Sending acknowledgment to {sender_jid}")
-            await self.whatsapp.send_message(
-                SendMessageRequest(
-                    phone=sender_jid,
-                    message="⏳ Generating summary for all groups... This may take a moment."
-                )
+            self.green_api_client.send_message(
+                phone=sender_jid,
+                message="⏳ Generating summary for all groups... This may take a moment."
             )
             logger.info("✅ Acknowledgment sent")
 
@@ -94,14 +90,11 @@ class CommandHandler:
             logger.error(f"❌ Error processing sikum command: {e}", exc_info=True)
 
             # Send error notification
-            from whatsapp import SendMessageRequest
             try:
                 logger.info(f"📤 Sending error notification to {sender_jid}")
-                await self.whatsapp.send_message(
-                    SendMessageRequest(
-                        phone=sender_jid,
-                        message=f"❌ Error generating summary: {str(e)}"
-                    )
+                self.green_api_client.send_message(
+                    phone=sender_jid,
+                    message=f"❌ Error generating summary: {str(e)}"
                 )
             except Exception as send_error:
                 logger.error(f"❌ Failed to send error notification: {send_error}")

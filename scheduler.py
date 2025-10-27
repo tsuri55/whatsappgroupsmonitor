@@ -7,7 +7,6 @@ from apscheduler.triggers.cron import CronTrigger
 
 from config import settings
 from summarizer import SummaryGenerator
-from whatsapp import WhatsAppClient
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +14,10 @@ logger = logging.getLogger(__name__)
 class SummaryScheduler:
     """Scheduler for daily summary generation."""
 
-    def __init__(self, whatsapp_client: WhatsAppClient):
+    def __init__(self, green_api_client):
         """Initialize scheduler."""
-        self.whatsapp = whatsapp_client
-        self.summary_generator = SummaryGenerator(whatsapp_client)
+        self.green_api_client = green_api_client
+        self.summary_generator = SummaryGenerator(green_api_client)
         self.scheduler = AsyncIOScheduler()
         self.timezone = pytz.timezone(settings.summary_schedule_timezone)
 

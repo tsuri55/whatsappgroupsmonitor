@@ -14,7 +14,6 @@ from green_api_client import GreenAPIClient
 from message_handler import MessageHandler
 from scheduler import SummaryScheduler
 from summarizer import SummaryGenerator
-from whatsapp import WhatsAppClient
 
 # Configure structured logging
 structlog.configure(
@@ -42,12 +41,11 @@ class Application:
     def __init__(self):
         """Initialize application."""
         # Initialize core components
-        self.whatsapp_client = WhatsAppClient()  # Keep for backwards compatibility with scheduler
-        self.message_handler = MessageHandler(self.whatsapp_client)
+        self.message_handler = MessageHandler()
         self.green_api_client = GreenAPIClient(self.message_handler)
-        self.summary_generator = SummaryGenerator(self.whatsapp_client)
-        self.command_handler = CommandHandler(self.whatsapp_client, self.summary_generator)
-        self.scheduler = SummaryScheduler(self.whatsapp_client)
+        self.summary_generator = SummaryGenerator(self.green_api_client)
+        self.command_handler = CommandHandler(self.green_api_client, self.summary_generator)
+        self.scheduler = SummaryScheduler(self.green_api_client)
         self._shutdown_event = asyncio.Event()
 
     async def start(self):
@@ -113,9 +111,6 @@ class Application:
 
         # Stop message handler
         await self.message_handler.stop()
-
-        # Close WhatsApp client
-        await self.whatsapp_client.close()
 
         # Close database connections
         await close_db()

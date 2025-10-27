@@ -16,7 +16,6 @@ from config import settings
 from database import get_session
 from models import Group, SummaryLog
 from utils import format_messages_for_summary, format_phone_number
-from whatsapp import SendMessageRequest, WhatsAppClient
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +26,9 @@ genai.configure(api_key=settings.google_api_key)
 class SummaryGenerator:
     """Generate summaries using Gemini LLM."""
 
-    def __init__(self, whatsapp_client: WhatsAppClient):
+    def __init__(self, green_api_client):
         """Initialize summary generator."""
-        self.whatsapp = whatsapp_client
+        self.green_api_client = green_api_client
         self.model = genai.GenerativeModel(settings.gemini_llm_model)
         logger.info(f"Initialized summary generator with model: {settings.gemini_llm_model}")
 
@@ -78,13 +77,10 @@ ONLY answer with the summary, no other text.
         try:
             logger.debug(f"📊 Summarizing group: {group.group_name}")
 
-            # Get my JID to exclude own messages
-            my_jid = await self.whatsapp.get_my_jid()
-            logger.debug(f"🤖 Bot JID (to exclude): {my_jid}")
-
-            # Get messages since last summary
+            # For Green API, we don't have a direct way to get our JID
+            # We'll exclude messages based on a pattern or skip this for now
             logger.debug(f"🔍 Fetching messages since last summary for {group.group_name}...")
-            messages = await group.get_messages_since_last_summary(session, exclude_sender_jid=my_jid)
+            messages = await group.get_messages_since_last_summary(session, exclude_sender_jid=None)
 
             # Check if we have any messages
             if len(messages) == 0:
@@ -223,8 +219,8 @@ ONLY answer with the summary, no other text.
             try:
                 recipient_phone = format_phone_number(settings.summary_recipient_phone)
                 logger.info(f"📤 Sending consolidated summary to {recipient_phone}...")
-                await self.whatsapp.send_message(
-                    SendMessageRequest(phone=recipient_phone, message=consolidated_summary)
+                self.green_api_client.send_message(
+                    phone=recipient_phone, message=consolidated_summary
                 )
 
                 logger.info(f"✅ Successfully sent daily summary to {recipient_phone}")

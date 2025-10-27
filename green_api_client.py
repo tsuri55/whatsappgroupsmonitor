@@ -103,7 +103,7 @@ class GreenAPIClient:
         except Exception as e:
             logger.error(f"Error processing incoming message: {e}", exc_info=True)
 
-    async def send_message(self, phone: str, message: str) -> dict[str, Any]:
+    def send_message(self, phone: str, message: str) -> dict[str, Any]:
         """
         Send a message via Green API.
 
