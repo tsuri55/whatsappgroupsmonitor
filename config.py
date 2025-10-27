@@ -21,7 +21,6 @@ class Settings(BaseSettings):
 
     # Google Gemini Configuration
     google_api_key: str
-    gemini_embedding_model: str = "models/gemini-embedding-001"
     gemini_llm_model: str = "models/gemini-flash-latest"
 
     # Notification Configuration

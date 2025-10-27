@@ -1,5 +1,4 @@
 """Message collection and processing pipeline."""
-import asyncio
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -8,7 +7,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from database import get_session
-from embeddings import embedding_generator
 from models import Group, Message
 from whatsapp import WhatsAppClient, WhatsAppMessage, normalize_jid
 
@@ -25,8 +23,6 @@ class MessageHandler:
         """Initialize message handler."""
         self.whatsapp = whatsapp_client
         self._my_jid: str | None = None
-        self._embedding_queue: asyncio.Queue = asyncio.Queue()
-        self._embedding_task: asyncio.Task | None = None
         self._command_handler: "CommandHandler | None" = None
 
     def set_command_handler(self, command_handler: "CommandHandler"):
@@ -37,18 +33,10 @@ class MessageHandler:
     async def start(self):
         """Start the message handler."""
         self._my_jid = await self.whatsapp.get_my_jid()
-        # Start background embedding processor
-        self._embedding_task = asyncio.create_task(self._process_embeddings())
         logger.info("Message handler started")
 
     async def stop(self):
         """Stop the message handler."""
-        if self._embedding_task:
-            self._embedding_task.cancel()
-            try:
-                await self._embedding_task
-            except asyncio.CancelledError:
-                pass
         logger.info("Message handler stopped")
 
     async def process_message(self, message_data: dict):
@@ -174,10 +162,6 @@ class MessageHandler:
             f"Saved message {message.message_id} from {message.sender_name} in group {message.group_jid}"
         )
 
-        # Queue for embedding generation (only for text messages)
-        if wa_message.message_type == "text":
-            await self._embedding_queue.put((message.id, wa_message.content))
-
     async def _ensure_group_exists(
         self, session: AsyncSession, group_jid: str, group_name: str | None
     ):
@@ -194,44 +178,6 @@ class MessageHandler:
             session.add(group)
             await session.commit()
             logger.info(f"Created new group record: {group_name} ({group_jid})")
-
-    async def _process_embeddings(self):
-        """Background task to process embedding queue."""
-        logger.info("Embedding processor started")
-        while True:
-            try:
-                # Get message from queue
-                message_id, content = await self._embedding_queue.get()
-
-                # Generate embedding
-                try:
-                    embedding = await embedding_generator.generate_embedding(content)
-
-                    if embedding:
-                        # Update message with embedding
-                        async with get_session() as session:
-                            result = await session.exec(
-                                select(Message).where(Message.id == message_id)
-                            )
-                            message = result.first()
-
-                            if message:
-                                message.embedding = embedding
-                                session.add(message)
-                                await session.commit()
-                                logger.debug(f"Updated message {message_id} with embedding")
-
-                except Exception as e:
-                    logger.error(f"Failed to generate embedding for message {message_id}: {e}")
-
-                self._embedding_queue.task_done()
-
-            except asyncio.CancelledError:
-                logger.info("Embedding processor cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Error in embedding processor: {e}", exc_info=True)
-                await asyncio.sleep(1)  # Brief pause before retrying
 
 
 async def sync_existing_groups(whatsapp_client: WhatsAppClient):

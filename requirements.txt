@@ -8,7 +8,6 @@ sqlalchemy==2.0.35
 sqlmodel==0.0.22
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
-pgvector==0.3.6
 alembic==1.13.3
 
 # Google Gemini

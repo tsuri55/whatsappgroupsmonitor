@@ -1,11 +1,11 @@
 # WhatsApp Groups Monitor
 
-A comprehensive WhatsApp monitoring system that connects to your WhatsApp account, monitors all group chats, records messages throughout the day with semantic embeddings, and sends daily AI-generated summaries to a specified phone number.
+A comprehensive WhatsApp monitoring system that connects to your WhatsApp account, monitors all group chats, records messages throughout the day, and sends daily AI-generated summaries to a specified phone number.
 
 ## Features
 
 - **Real-time Message Monitoring**: Automatically captures all messages from WhatsApp groups
-- **Semantic Search**: Uses Google Gemini embeddings (gemini-embedding-001) for message embeddings stored in PostgreSQL with pgvector
+- **Message Storage**: Stores all messages in PostgreSQL for summary generation
 - **AI-Generated Summaries**: Creates intelligent, context-aware summaries using Gemini Flash LLM
 - **Language Detection**: Summaries match the language of the group chat automatically
 - **User Tagging**: Mentions users in summaries for better context
@@ -16,9 +16,7 @@ A comprehensive WhatsApp monitoring system that connects to your WhatsApp accoun
 ## Architecture
 
 ```
-WhatsApp Web (Docker) → Message Handler → PostgreSQL + pgvector
-                              ↓
-                        Embedding Generator (Gemini)
+WhatsApp Web (Docker) → Message Handler → PostgreSQL
                               ↓
                         Daily Scheduler → Summary Generator (Gemini) → WhatsApp Sender
 ```
@@ -26,8 +24,7 @@ WhatsApp Web (Docker) → Message Handler → PostgreSQL + pgvector
 ## Tech Stack
 
 - **WhatsApp Interface**: aldinokemal2104/go-whatsapp-web-multidevice (Docker)
-- **Database**: PostgreSQL 16 with pgvector extension
-- **Embeddings**: Google Gemini embedding-001 (768 dimensions)
+- **Database**: PostgreSQL 16
 - **LLM**: Google Gemini Flash (latest)
 - **Backend**: Python 3.11+ with asyncio
 - **Deployment**: Railway-ready
@@ -69,7 +66,7 @@ docker-compose up -d
 ```
 
 This will start:
-- PostgreSQL with pgvector on port 5432
+- PostgreSQL on port 5432
 - WhatsApp Web API on port 3000
 - WhatsApp Monitor application on port 8000
 
@@ -82,7 +79,6 @@ This will start:
 The system will automatically:
 - Load all your WhatsApp groups
 - Start monitoring new messages
-- Generate embeddings in the background
 - Schedule daily summaries
 
 ### 5. Request On-Demand Summaries
@@ -133,7 +129,6 @@ python main.py
 | `WHATSAPP_API_KEY` | API key for webhook auth | your_api_key_here |
 | `DATABASE_URL` | PostgreSQL connection URL (async) | postgresql+asyncpg://... |
 | `GOOGLE_API_KEY` | Google Gemini API key | **Required** |
-| `GEMINI_EMBEDDING_MODEL` | Embedding model name | models/gemini-embedding-001 |
 | `GEMINI_LLM_MODEL` | LLM model name | models/gemini-flash-latest |
 | `SUMMARY_RECIPIENT_PHONE` | Phone to receive summaries | +972542607800 |
 | `SUMMARY_SCHEDULE_HOUR` | Hour to send summaries (0-23) | 20 |
@@ -170,7 +165,6 @@ SUMMARY_SCHEDULE_TIMEZONE=America/New_York
 - `content`: Message text content
 - `message_type`: Type (text, image, video, etc.)
 - `timestamp`: Message timestamp
-- `embedding`: Vector(768) for semantic search
 - `created_at`: Record creation time
 
 ### Summary Logs Table
@@ -190,8 +184,6 @@ SUMMARY_SCHEDULE_TIMEZONE=America/New_York
 1. **Message Reception**: WhatsApp API sends new messages via webhook to `/webhook/message`
 2. **Message Processing**: Handler parses and validates the message
 3. **Database Storage**: Message is saved to PostgreSQL
-4. **Embedding Generation**: Background task generates embedding using Gemini
-5. **Embedding Storage**: Vector embedding saved for future semantic search
 
 ### Daily Summary Flow
 
@@ -261,17 +253,7 @@ In Railway dashboard:
 1. Click "New" → "Database" → "PostgreSQL"
 2. Note the connection URL
 
-### 5. Add pgvector Plugin
-
-In Railway PostgreSQL settings:
-1. Go to "Variables" tab
-2. Add: `DATABASE_URL` with your PostgreSQL URL
-3. Connect to database and run:
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-### 6. Deploy WhatsApp API
+### 5. Deploy WhatsApp API
 
 Add a new service:
 1. Click "New" → "Empty Service"
@@ -281,13 +263,13 @@ Add a new service:
    - `WEBHOOK_URL`: https://your-app-domain.railway.app/webhook/message
    - `WEBHOOK_SECRET`: Your API key
 
-### 7. Deploy Main Application
+### 6. Deploy Main Application
 
 ```bash
 railway up
 ```
 
-### 8. Set Environment Variables
+### 7. Set Environment Variables
 
 In Railway dashboard:
 - Copy all variables from `.env.example`
@@ -295,7 +277,7 @@ In Railway dashboard:
 - Update `WHATSAPP_API_URL` to Railway WhatsApp service URL
 - Update `DATABASE_URL` to Railway PostgreSQL URL
 
-### 9. Connect WhatsApp
+### 8. Connect WhatsApp
 
 1. Open your WhatsApp API Railway service URL
 2. Scan QR code with WhatsApp mobile app
@@ -370,25 +352,9 @@ LIMIT 10;
 
 ### Database Issues
 
-**Problem**: pgvector extension not found
-```bash
-docker-compose exec postgres psql -U postgres -d whatsapp_monitor -c "CREATE EXTENSION vector;"
-```
-
 **Problem**: Connection refused
 - Ensure PostgreSQL is running: `docker-compose ps`
 - Check DATABASE_URL in `.env`
-
-### Embedding Issues
-
-**Problem**: Embeddings not being generated
-- Check Google API key is valid
-- Monitor logs for API errors
-- Verify internet connectivity
-
-**Problem**: Gemini API quota exceeded
-- Check Google Cloud Console for quota limits
-- Consider rate limiting or upgrading plan
 
 ### Summary Issues
 
@@ -451,7 +417,6 @@ wa-groups-monitor/
 ├── database.py            # Database connection & session
 ├── models.py              # SQLModel database models
 ├── whatsapp.py           # WhatsApp API client wrapper
-├── embeddings.py         # Gemini embedding generation
 ├── message_handler.py    # Message processing pipeline
 ├── commands.py           # Bot command handler (sikum, etc.)
 ├── summarizer.py         # Summary generation with Gemini
@@ -480,7 +445,6 @@ wa-groups-monitor/
 
 - [ ] Web dashboard for viewing summaries
 - [x] On-demand summary generation via WhatsApp command (implemented via "sikum")
-- [ ] Semantic search API across all messages
 - [ ] Analytics and insights (trending topics, active users)
 - [ ] Custom summary schedules per group
 - [ ] Multi-language summary translation
@@ -488,7 +452,7 @@ wa-groups-monitor/
 - [ ] Group filtering/blacklisting
 - [ ] Sentiment analysis
 - [ ] Integration with Slack/Discord
-- [ ] Additional bot commands (e.g., "search", "stats", "help")
+- [ ] Additional bot commands (e.g., "stats", "help")
 
 ## Contributing
 
@@ -513,6 +477,5 @@ For issues and questions:
 ## Acknowledgments
 
 - [go-whatsapp-web-multidevice](https://github.com/aldinokemal/go-whatsapp-web-multidevice) - WhatsApp Web API
-- [Google Gemini](https://ai.google.dev/) - Embeddings and LLM
-- [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
+- [Google Gemini](https://ai.google.dev/) - LLM for AI-generated summaries
 - [SQLModel](https://sqlmodel.tiangolo.com/) - SQL databases with Python type annotations

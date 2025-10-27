@@ -2,8 +2,6 @@
 from datetime import datetime
 from typing import Optional
 
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, Index, text
 from sqlmodel import Field, Relationship, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -57,29 +55,10 @@ class Message(SQLModel, table=True):
     content: str = Field(description="Message content")
     message_type: str = Field(default="text", description="Message type (text, image, etc.)")
     timestamp: datetime = Field(default_factory=datetime.now, index=True)
-
-    # Vector embedding for semantic search (768 dimensions for gemini-embedding-001)
-    embedding: Optional[list[float]] = Field(
-        default=None,
-        sa_column=Column(Vector(768), nullable=True),
-        description="Message embedding vector"
-    )
-
     created_at: datetime = Field(default_factory=datetime.now)
 
     # Relationships
     group: Optional[Group] = Relationship(back_populates="messages")
-
-    __table_args__ = (
-        # Index for vector similarity search
-        Index(
-            "ix_messages_embedding",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_with={"lists": 100},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
-    )
 
 
 class SummaryLog(SQLModel, table=True):
