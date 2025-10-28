@@ -41,11 +41,30 @@ class GreenAPIClient:
         """
         try:
             logger.info(f"📩 GREEN API NOTIFICATION - Type: {type_webhook}")
+            # For quicker diagnostics, log concise highlights at INFO and full body at DEBUG
+            try:
+                highlights = {
+                    "type": type_webhook,
+                    "idMessage": body.get("idMessage"),
+                    "timestamp": body.get("timestamp"),
+                    "sender": (body.get("senderData") or {}).get("sender"),
+                    "chatId": (body.get("senderData") or {}).get("chatId"),
+                    "stateInstance": (body.get("stateInstanceData") or {}).get("stateInstance"),
+                }
+                logger.info(f"🔎 Notification highlights: {highlights}")
+            except Exception:
+                # noop – best-effort highlights only
+                pass
             logger.debug(f"Notification body: {body}")
 
-            # Handle incoming messages
+            # Route processing based on type
             if type_webhook == "incomingMessageReceived":
                 self._handle_incoming_message(body)
+            elif type_webhook in {"outgoingMessageReceived", "outgoingAPIMessageReceived"}:
+                logger.debug("Ignoring outgoing message notification")
+            elif type_webhook == "stateInstanceChanged":
+                state = (body.get("stateInstanceData") or {}).get("stateInstance")
+                logger.info(f"🟢 Instance state changed: {state}")
             else:
                 logger.debug(f"Ignoring notification type: {type_webhook}")
 
@@ -64,37 +83,50 @@ class GreenAPIClient:
             message_data = body.get("messageData", {})
             sender_data = body.get("senderData", {})
 
+            # Determine if this is a group chat
+            chat_id = sender_data.get("chatId", "")
+            is_group = chat_id.endswith("@g.us")
+
+            # Prefer extended/text payloads
+            text = (
+                (message_data.get("textMessageData") or {}).get("textMessage")
+                or (message_data.get("extendedTextMessageData") or {}).get("text")
+                or ""
+            )
+
             # Convert to format expected by message_handler
             formatted_data = {
                 "info": {
-                    "id": {
-                        "id": body.get("idMessage", "")
-                    },
+                    "id": {"id": body.get("idMessage", "")},
                     "messageSource": {
                         "senderJID": sender_data.get("sender", ""),
-                        "groupJID": sender_data.get("chatId", "") if "@g.us" in sender_data.get("chatId", "") else ""
+                        "groupJID": chat_id if is_group else "",
                     },
                     "timestamp": body.get("timestamp", 0),
-                    "pushName": sender_data.get("senderName", "")
+                    "pushName": sender_data.get("senderName", ""),
                 },
                 "message": {
-                    "conversation": message_data.get("textMessageData", {}).get("textMessage", ""),
+                    "conversation": text,
                     "extendedTextMessage": message_data.get("extendedTextMessageData", {}),
                     "imageMessage": message_data.get("imageMessageData", {}),
                     "videoMessage": message_data.get("videoMessageData", {}),
-                    "documentMessage": message_data.get("documentMessageData", {})
-                }
+                    "documentMessage": message_data.get("documentMessageData", {}),
+                },
             }
 
             # Log parsed message
             sender_jid = formatted_data["info"]["messageSource"]["senderJID"]
             group_jid = formatted_data["info"]["messageSource"]["groupJID"]
-            content = formatted_data["message"]["conversation"]
+            content_preview = (formatted_data["message"]["conversation"] or "").strip()
 
             if group_jid:
-                logger.info(f"✅ Parsed GROUP message from {sender_jid} in {group_jid}: '{content[:100]}'")
+                logger.info(f"✅ Parsed GROUP message from {sender_jid} in {group_jid}: '{content_preview[:120]}'")
             else:
-                logger.info(f"✅ Parsed DIRECT message from {sender_jid}: '{content[:100]}'")
+                logger.info(f"✅ Parsed DIRECT message from {sender_jid}: '{content_preview[:120]}'")
+
+            if not formatted_data["info"]["id"]["id"]:
+                logger.warning("⚠️ Message without idMessage; skipping")
+                return
 
             # Process message through existing handler
             import asyncio
