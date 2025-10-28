@@ -5,6 +5,7 @@ uvicorn[standard]==0.32.0
 # Database
 sqlmodel==0.0.22
 aiosqlite==0.20.0
+greenlet==3.0.0
 
 # Green API WhatsApp
 whatsapp-api-client-python==0.0.49
