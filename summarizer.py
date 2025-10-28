@@ -72,7 +72,7 @@ ONLY answer with the summary, no other text.
             logger.error(f"❌ AI GENERATION FAILED for {group_name}: {e}")
             raise
 
-    async def summarize_group(self, session: AsyncSession, group: Group) -> bool:
+    async def summarize_group(self, session: AsyncSession, group: Group, *, force: bool = False) -> bool:
         """Summarize a single group and return success status."""
         try:
             logger.debug(f"📊 Summarizing group: {group.group_name}")
@@ -84,6 +84,9 @@ ONLY answer with the summary, no other text.
 
             # Check if we have any messages
             if len(messages) == 0:
+                if force:
+                    logger.info(f"ℹ️ Force mode: zero messages in {group.group_name}, skipping but not failing")
+                    return False
                 logger.info(f"ℹ️ No messages to summarize in group {group.group_name}")
                 return False
 
@@ -148,8 +151,12 @@ ONLY answer with the summary, no other text.
             logger.error(f"Error in summarize_group for {group.group_name}: {e}", exc_info=True)
             return False
 
-    async def generate_and_send_daily_summaries(self):
-        """Generate summaries for all managed groups and send consolidated summary."""
+    async def generate_and_send_daily_summaries(self, force: bool = False):
+        """Generate summaries for all managed groups and send consolidated summary.
+
+        Args:
+            force: When True, bypass minimum message threshold and attempt summaries anyway.
+        """
         logger.info("=" * 80)
         logger.info("📊 DAILY SUMMARY GENERATION STARTED")
         logger.info("=" * 80)
@@ -174,7 +181,7 @@ ONLY answer with the summary, no other text.
             logger.info("🔄 Processing each group...")
             for idx, group in enumerate(groups, 1):
                 logger.info(f"\n--- Group {idx}/{len(groups)}: {group.group_name} ---")
-                success = await self.summarize_group(session, group)
+                success = await self.summarize_group(session, group, force=force)
 
                 if success:
                     logger.debug(f"✅ Summary generated for {group.group_name}, fetching from database...")
@@ -206,6 +213,9 @@ ONLY answer with the summary, no other text.
             logger.info(f"📊 Summary generation complete: {len(summaries_data)}/{len(groups)} groups have summaries")
 
             if not summaries_data:
+                if force:
+                    logger.info("ℹ️ Force mode: no summaries produced; nothing to send")
+                    return
                 logger.info("ℹ️ No summaries to send (all groups had insufficient messages)")
                 return
 
@@ -219,6 +229,7 @@ ONLY answer with the summary, no other text.
             try:
                 recipient_phone = format_phone_number(settings.summary_recipient_phone)
                 logger.info(f"📤 Sending consolidated summary to {recipient_phone}...")
+                logger.info("📤 Sending consolidated summary message via Green API")
                 self.green_api_client.send_message(
                     phone=recipient_phone, message=consolidated_summary
                 )

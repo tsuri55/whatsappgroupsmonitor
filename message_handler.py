@@ -98,11 +98,11 @@ class MessageHandler:
 
             # Save message to database (only group messages or non-command DMs)
             if wa_message.group_jid:
-                logger.debug(f"💾 Saving group message to database...")
+                logger.info(f"💾 Saving group message to database (group={wa_message.group_jid})")
                 async with get_session() as session:
                     await self._save_message(session, wa_message)
             else:
-                logger.debug("ℹ️ Direct message (non-command) - not saving to database")
+                logger.info("ℹ️ Direct message (non-command) - not saving to database")
 
         except Exception as e:
             logger.error(f"❌ Error processing message: {e}", exc_info=True)

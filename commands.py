@@ -24,6 +24,7 @@ class CommandHandler:
             "/summary": self._handle_sikum_command,
             "summary": self._handle_sikum_command,
             "summarize": self._handle_sikum_command,
+            "stats": self._handle_stats_command,
         }
 
         logger.info(f"Command handler initialized. Authorized user: {self.authorized_phone}")
@@ -82,7 +83,7 @@ class CommandHandler:
 
             # Generate and send summaries
             logger.info("🤖 Starting AI summary generation for all groups...")
-            await self.summary_generator.generate_and_send_daily_summaries()
+            await self.summary_generator.generate_and_send_daily_summaries(force=True)
 
             logger.info("✅ On-demand summary completed successfully")
 
@@ -98,3 +99,29 @@ class CommandHandler:
                 )
             except Exception as send_error:
                 logger.error(f"❌ Failed to send error notification: {send_error}")
+
+    async def _handle_stats_command(self, sender_jid: str, message_text: str):
+        """Report basic DB stats: groups count and recent messages count."""
+        logger.info("📊 STATS COMMAND - Gathering database statistics")
+        try:
+            from database import get_session
+            from models import Group, Message
+            from sqlmodel import select
+
+            async with get_session() as session:
+                groups_count = (await session.exec(select(Group))).all()
+                messages_count = (await session.exec(select(Message))).all()
+
+            text = (
+                f"📊 Stats:\n"
+                f"Groups: {len(groups_count)}\n"
+                f"Messages: {len(messages_count)}\n"
+            )
+            self.green_api_client.send_message(phone=sender_jid, message=text)
+            logger.info("✅ Stats sent")
+        except Exception as e:
+            logger.error(f"❌ Error generating stats: {e}")
+            try:
+                self.green_api_client.send_message(phone=sender_jid, message=f"❌ Stats error: {e}")
+            except Exception:
+                pass
