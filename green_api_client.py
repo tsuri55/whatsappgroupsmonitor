@@ -1,4 +1,5 @@
 """Green API WhatsApp client integration."""
+import asyncio
 import logging
 from typing import Any
 
@@ -20,17 +21,50 @@ class GreenAPIClient:
             settings.green_api_instance_id,
             settings.green_api_token
         )
+        self._message_queue = None  # Will be created in start_receiving
+        self._loop = None
+        self._processor_task = None
         logger.info(f"Green API client initialized for instance: {settings.green_api_instance_id}")
+
+    async def _message_processor(self):
+        """Background task to process messages from the queue."""
+        logger.info("🔄 Message processor task started")
+        while True:
+            try:
+                # Wait for messages in the queue
+                formatted_data = await self._message_queue.get()
+                logger.info("📨 Processing message from queue...")
+
+                try:
+                    await self.message_handler.process_message(formatted_data)
+                    logger.info("✅ Message processed successfully from queue")
+                except Exception as e:
+                    logger.error(f"❌ Error processing message from queue: {e}", exc_info=True)
+                finally:
+                    self._message_queue.task_done()
+
+            except asyncio.CancelledError:
+                logger.info("Message processor task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Unexpected error in message processor: {e}", exc_info=True)
 
     async def start_receiving(self):
         """Start receiving incoming notifications from Green API."""
         logger.info("Starting to receive notifications from Green API...")
         # Capture the running event loop to schedule work from webhook thread
-        import asyncio
         try:
             self._loop = asyncio.get_running_loop()
         except RuntimeError:
             self._loop = None
+
+        # Create message queue
+        self._message_queue = asyncio.Queue()
+        logger.info("✅ Message queue created")
+
+        # Start background processor task
+        self._processor_task = asyncio.create_task(self._message_processor())
+        logger.info("✅ Message processor task started")
 
         # Start receiving notifications with callback
         self.api.webhooks.startReceivingNotifications(self._on_notification)
@@ -134,42 +168,22 @@ class GreenAPIClient:
                 logger.warning("⚠️ Message without idMessage; skipping")
                 return
 
-            # Process message through existing handler on the main asyncio loop
-            import asyncio
-            logger.info("🔧 Preparing to schedule message processing on asyncio loop...")
+            # Add message to queue using thread-safe method
+            if self._loop is None or self._message_queue is None:
+                logger.warning("⚠️ Event loop or message queue not initialized; message will not be processed")
+                return
 
-            if self._loop is None:
-                logger.warning("⚠️ Loop is None, attempting to get running loop...")
+            logger.info("📬 Adding message to processing queue...")
+
+            # Use call_soon_threadsafe to add item to queue from webhook thread
+            def add_to_queue():
                 try:
-                    self._loop = asyncio.get_running_loop()
-                    logger.info(f"✅ Got running loop: {self._loop}")
-                except RuntimeError as e:
-                    logger.error(f"❌ Failed to get running loop: {e}")
-                    self._loop = None
-
-            if self._loop is not None:
-                logger.info(f"🚀 Scheduling process_message on loop: {self._loop}")
-                try:
-                    future = asyncio.run_coroutine_threadsafe(
-                        self.message_handler.process_message(formatted_data), self._loop
-                    )
-                    logger.info(f"✅ Coroutine scheduled, future: {future}")
-
-                    # Add callback to log any exceptions
-                    def check_result(f):
-                        logger.info("🎯 Future callback triggered")
-                        try:
-                            result = f.result()
-                            logger.info(f"✅ Message processing completed successfully: {result}")
-                        except Exception as e:
-                            logger.error(f"❌ Exception in process_message coroutine: {e}", exc_info=True)
-
-                    future.add_done_callback(check_result)
-                    logger.info("✅ Callback registered to future")
+                    self._message_queue.put_nowait(formatted_data)
+                    logger.info("✅ Message added to queue successfully")
                 except Exception as e:
-                    logger.error(f"❌ Error scheduling coroutine: {e}", exc_info=True)
-            else:
-                logger.warning("⚠️ No asyncio loop captured; message will not be processed")
+                    logger.error(f"❌ Failed to add message to queue: {e}", exc_info=True)
+
+            self._loop.call_soon_threadsafe(add_to_queue)
 
         except Exception as e:
             logger.error(f"Error processing incoming message: {e}", exc_info=True)
@@ -204,11 +218,20 @@ class GreenAPIClient:
             logger.error(f"❌ Failed to send message to {phone}: {e}")
             raise
 
-    def stop(self):
+    async def stop(self):
         """Stop receiving notifications."""
         try:
-            # Green API library may not have explicit stop method
-            # Just log that we're stopping
             logger.info("Stopping Green API client...")
+
+            # Cancel processor task
+            if self._processor_task:
+                self._processor_task.cancel()
+                try:
+                    await self._processor_task
+                except asyncio.CancelledError:
+                    pass
+                logger.info("Message processor task stopped")
+
+            logger.info("Green API client stopped")
         except Exception as e:
             logger.error(f"Error stopping Green API client: {e}")

@@ -118,7 +118,7 @@ class Application:
         self.scheduler.stop()
 
         # Stop Green API client
-        self.green_api_client.stop()
+        await self.green_api_client.stop()
 
         # Stop message handler
         await self.message_handler.stop()
