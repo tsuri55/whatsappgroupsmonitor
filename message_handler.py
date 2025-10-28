@@ -44,7 +44,8 @@ class MessageHandler:
     async def process_message(self, message_data: dict):
         """Process incoming WhatsApp message."""
         try:
-            logger.debug("🔄 Processing message data...")
+            logger.info("🔄 MESSAGE HANDLER - Starting to process message data...")
+            logger.debug(f"📦 Message data keys: {list(message_data.keys())}")
 
             # Parse message data
             wa_message = self._parse_message_data(message_data)
@@ -55,14 +56,14 @@ class MessageHandler:
             # Log parsed message details
             if wa_message.group_jid:
                 logger.info(
-                    f"✅ Parsed GROUP message: "
+                    f"✅ MESSAGE HANDLER - Parsed GROUP message: "
                     f"sender={wa_message.sender_jid}, "
                     f"group={wa_message.group_jid}, "
                     f"content='{wa_message.content[:100]}'"
                 )
             else:
                 logger.info(
-                    f"✅ Parsed DIRECT message: "
+                    f"✅ MESSAGE HANDLER - Parsed DIRECT message: "
                     f"sender={wa_message.sender_jid}, "
                     f"content='{wa_message.content[:100]}'"
                 )

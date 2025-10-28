@@ -143,9 +143,16 @@ class GreenAPIClient:
                     self._loop = None
 
             if self._loop is not None:
-                asyncio.run_coroutine_threadsafe(
+                future = asyncio.run_coroutine_threadsafe(
                     self.message_handler.process_message(formatted_data), self._loop
                 )
+                # Add callback to log any exceptions
+                def check_result(f):
+                    try:
+                        f.result()
+                    except Exception as e:
+                        logger.error(f"❌ Exception in process_message coroutine: {e}", exc_info=True)
+                future.add_done_callback(check_result)
             else:
                 logger.warning("⚠️ No asyncio loop captured; message will not be processed")
 

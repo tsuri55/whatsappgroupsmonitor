@@ -132,11 +132,31 @@ class WhatsAppClient:
 
 
 def normalize_jid(jid: str) -> str:
-    """Normalize WhatsApp JID format."""
-    # Remove any @s.whatsapp.net or @g.us suffixes and re-add appropriately
-    jid = jid.split("@")[0]
+    """
+    Normalize WhatsApp JID format for Green API.
+
+    Green API uses:
+    - User JIDs: number@c.us (e.g., 972542607800@c.us)
+    - Group JIDs: groupId@g.us (e.g., 120363407075043193@g.us)
+
+    Handles input formats:
+    - With suffix: 972542607800@c.us, 120363407075043193@g.us
+    - Without suffix: 972542607800, +972542607800
+    - Old format: 972542607800@s.whatsapp.net
+    """
+    if not jid:
+        return ""
+
+    # If already in correct format, return as-is
+    if jid.endswith("@c.us") or jid.endswith("@g.us"):
+        return jid
+
+    # Extract number part (remove any suffix and + prefix)
+    number = jid.split("@")[0].lstrip("+")
+
     # Group JIDs typically contain '-' and end with @g.us
-    if "-" in jid:
-        return f"{jid}@g.us"
-    # User JIDs end with @s.whatsapp.net
-    return f"{jid}@s.whatsapp.net"
+    if "-" in number:
+        return f"{number}@g.us"
+
+    # User JIDs end with @c.us for Green API
+    return f"{number}@c.us"

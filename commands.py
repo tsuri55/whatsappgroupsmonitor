@@ -40,8 +40,10 @@ class CommandHandler:
 
         # Normalize sender JID
         sender_jid_normalized = normalize_jid(sender_jid)
-        logger.debug(f"🔍 Normalized sender JID: {sender_jid_normalized}")
-        logger.debug(f"🔍 Authorized phone: {self.authorized_phone}")
+        logger.info(f"🔍 Raw sender JID: {sender_jid}")
+        logger.info(f"🔍 Normalized sender JID: {sender_jid_normalized}")
+        logger.info(f"🔍 Authorized phone: {self.authorized_phone}")
+        logger.info(f"🔍 JIDs match: {sender_jid_normalized == self.authorized_phone}")
 
         # Only process commands from authorized phone
         if sender_jid_normalized != self.authorized_phone:
@@ -54,9 +56,10 @@ class CommandHandler:
 
         # Check if message is a command
         message_lower = message_text.strip().lower()
-        logger.debug(f"🔍 Message lowercase: '{message_lower}'")
+        logger.info(f"🔍 Message lowercase: '{message_lower}'")
 
         for command_keyword, handler in self.commands.items():
+            logger.debug(f"🔍 Checking command keyword: '{command_keyword}'")
             if message_lower == command_keyword or message_lower.startswith(f"{command_keyword} "):
                 logger.info(
                     f"🎯 COMMAND MATCHED - '{command_keyword}' from {sender_jid} - executing handler..."
@@ -65,7 +68,7 @@ class CommandHandler:
                 logger.info(f"✅ COMMAND COMPLETED - '{command_keyword}'")
                 return True
 
-        logger.debug(f"ℹ️ No command keyword matched in: '{message_lower}'")
+        logger.info(f"ℹ️ No command keyword matched in: '{message_lower}'")
         return False
 
     async def _handle_sikum_command(self, sender_jid: str, message_text: str):
