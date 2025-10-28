@@ -33,20 +33,26 @@ class GreenAPIClient:
             Response from Green API
         """
         try:
+            logger.info(f"📤 SEND MESSAGE - Raw phone input: '{phone}'")
+
             # Clean phone number format (remove @ suffix if present)
             chat_id = phone.split("@")[0] if "@" in phone else phone
+            logger.debug(f"📤 After split: '{chat_id}'")
 
             # Ensure phone number has @c.us suffix for Green API
             if not chat_id.endswith("@c.us") and not chat_id.endswith("@g.us"):
                 chat_id = f"{chat_id}@c.us"
+                logger.debug(f"📤 Added @c.us suffix: '{chat_id}'")
 
-            logger.info(f"📤 Sending message to {chat_id}")
+            logger.info(f"📤 Final chatId for Green API: '{chat_id}'")
+            logger.debug(f"📤 Message preview: {message[:100]}...")
 
             response = self.api.sending.sendMessage(chat_id, message)
 
             logger.info(f"✅ Message sent successfully to {chat_id}")
+            logger.debug(f"✅ Response: {response}")
             return response
 
         except Exception as e:
-            logger.error(f"❌ Failed to send message to {phone}: {e}")
+            logger.error(f"❌ Failed to send message to {phone}: {e}", exc_info=True)
             raise
