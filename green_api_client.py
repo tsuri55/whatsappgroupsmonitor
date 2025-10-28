@@ -136,23 +136,38 @@ class GreenAPIClient:
 
             # Process message through existing handler on the main asyncio loop
             import asyncio
+            logger.info("🔧 Preparing to schedule message processing on asyncio loop...")
+
             if self._loop is None:
+                logger.warning("⚠️ Loop is None, attempting to get running loop...")
                 try:
                     self._loop = asyncio.get_running_loop()
-                except RuntimeError:
+                    logger.info(f"✅ Got running loop: {self._loop}")
+                except RuntimeError as e:
+                    logger.error(f"❌ Failed to get running loop: {e}")
                     self._loop = None
 
             if self._loop is not None:
-                future = asyncio.run_coroutine_threadsafe(
-                    self.message_handler.process_message(formatted_data), self._loop
-                )
-                # Add callback to log any exceptions
-                def check_result(f):
-                    try:
-                        f.result()
-                    except Exception as e:
-                        logger.error(f"❌ Exception in process_message coroutine: {e}", exc_info=True)
-                future.add_done_callback(check_result)
+                logger.info(f"🚀 Scheduling process_message on loop: {self._loop}")
+                try:
+                    future = asyncio.run_coroutine_threadsafe(
+                        self.message_handler.process_message(formatted_data), self._loop
+                    )
+                    logger.info(f"✅ Coroutine scheduled, future: {future}")
+
+                    # Add callback to log any exceptions
+                    def check_result(f):
+                        logger.info("🎯 Future callback triggered")
+                        try:
+                            result = f.result()
+                            logger.info(f"✅ Message processing completed successfully: {result}")
+                        except Exception as e:
+                            logger.error(f"❌ Exception in process_message coroutine: {e}", exc_info=True)
+
+                    future.add_done_callback(check_result)
+                    logger.info("✅ Callback registered to future")
+                except Exception as e:
+                    logger.error(f"❌ Error scheduling coroutine: {e}", exc_info=True)
             else:
                 logger.warning("⚠️ No asyncio loop captured; message will not be processed")
 
