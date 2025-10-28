@@ -48,6 +48,12 @@ class Application:
         self.scheduler = SummaryScheduler(self.green_api_client)
         self._shutdown_event = asyncio.Event()
 
+    async def _heartbeat(self):
+        """Heartbeat task to verify event loop is processing coroutines."""
+        while not self._shutdown_event.is_set():
+            logger.info("💓 EVENT LOOP HEARTBEAT - loop is actively processing tasks")
+            await asyncio.sleep(5)
+
     async def start(self):
         """Start the application."""
         logger.info("=" * 80)
@@ -79,6 +85,11 @@ class Application:
             logger.info("5️⃣ Starting scheduler...")
             self.scheduler.start()
             logger.info("✅ Scheduler started")
+
+            # Start heartbeat task to verify event loop is processing
+            logger.info("6️⃣ Starting event loop heartbeat...")
+            asyncio.create_task(self._heartbeat())
+            logger.info("✅ Heartbeat started")
 
             logger.info("=" * 80)
             logger.info("✅ WhatsApp Groups Monitor is running!")
