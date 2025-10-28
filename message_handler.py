@@ -19,9 +19,8 @@ logger = logging.getLogger(__name__)
 class MessageHandler:
     """Handle incoming WhatsApp messages."""
 
-    def __init__(self, green_api_client=None):
+    def __init__(self):
         """Initialize message handler."""
-        self.green_api_client = green_api_client
         self._my_jid: str | None = None
         self._command_handler: "CommandHandler | None" = None
 
@@ -217,20 +216,3 @@ class MessageHandler:
             session.add(group)
             await session.commit()
             logger.info(f"Created new group record: {group_name} ({group_jid})")
-
-
-async def sync_existing_groups(green_api_client=None):
-    """Sync existing WhatsApp groups to database."""
-    logger.info("Syncing existing groups...")
-
-    try:
-        # For Green API, we don't have a direct way to get all groups
-        # Groups will be discovered as messages come in
-        logger.info("Groups will be discovered as messages are received (Green API mode)")
-        
-        # We could potentially use Green API to get groups, but for now
-        # we'll let groups be discovered dynamically
-        logger.info("Group discovery completed (dynamic mode)")
-
-    except Exception as e:
-        logger.error(f"Error syncing groups: {e}", exc_info=True)

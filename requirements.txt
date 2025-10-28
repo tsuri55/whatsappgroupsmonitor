@@ -1,33 +1,24 @@
-# Core
-python-dotenv==1.0.0
-pydantic==2.9.2
-pydantic-settings==2.5.2
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
 
 # Database
-sqlalchemy==2.0.35
 sqlmodel==0.0.22
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
-alembic==1.13.3
+aiosqlite==0.20.0
 
-# Google Gemini
+# Green API WhatsApp
+whatsapp-api-client-python==0.0.122
+
+# Google Gemini AI
 google-generativeai==0.8.3
 
-# WhatsApp Client
-httpx==0.27.2
-aiohttp==3.10.10
-whatsapp-api-client-python==0.0.49
+# Configuration
+pydantic-settings==2.6.0
+python-dotenv==1.0.1
 
 # Scheduling
 apscheduler==3.10.4
-pytz==2024.2
+pytz==2024.1
 
 # Utilities
-tenacity==9.0.0
 structlog==24.4.0
-
-# Development
-pytest==8.3.3
-pytest-asyncio==0.24.0
-black==24.10.0
-ruff==0.7.3

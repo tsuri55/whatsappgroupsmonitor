@@ -7,21 +7,12 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # WhatsApp API Configuration (legacy - can be removed if using Green API)
-    whatsapp_api_url: str = "http://localhost:3000"
-    whatsapp_api_key: str = "your_api_key_here"
-
     # Green API Configuration
     green_api_instance_id: str = ""
     green_api_token: str = ""
 
     # Database Configuration
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/whatsapp_monitor"
-
-    @property
-    def database_sync_url(self) -> str:
-        """Convert async database URL to sync version for migrations."""
-        return self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+    database_url: str = "sqlite+aiosqlite:///./whatsapp_monitor.db"
 
     # Google Gemini Configuration
     google_api_key: str
@@ -36,11 +27,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     minimum_messages_for_summary: int = 15
     max_messages_per_summary: int = 1000
-
-    # Retry Configuration
-    max_retry_attempts: int = 6
-    retry_min_wait: int = 1
-    retry_max_wait: int = 30
+    port: int = 8000  # Port for FastAPI webhook server
 
 
 # Global settings instance

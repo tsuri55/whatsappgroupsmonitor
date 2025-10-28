@@ -12,11 +12,14 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 # Async engine for application use
+# SQLite requires check_same_thread=False for async access
+connect_args = {"check_same_thread": False} if "sqlite" in settings.database_url else {}
+
 async_engine = create_async_engine(
     settings.database_url,
     echo=settings.log_level == "DEBUG",
     future=True,
-    pool_pre_ping=True,
+    connect_args=connect_args,
 )
 
 # Async session factory

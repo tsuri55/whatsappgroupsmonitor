@@ -1,12 +1,10 @@
-"""Green API WhatsApp client integration."""
-import asyncio
+"""Green API WhatsApp client for sending messages."""
 import logging
 from typing import Any
 
 from whatsapp_api_client_python import API
 
 from config import settings
-from message_handler import MessageHandler
 
 logger = logging.getLogger(__name__)
 
@@ -14,179 +12,14 @@ logger = logging.getLogger(__name__)
 class GreenAPIClient:
     """Client for Green API WhatsApp service."""
 
-    def __init__(self, message_handler: MessageHandler):
+    def __init__(self, message_handler=None):
         """Initialize Green API client."""
         self.message_handler = message_handler
         self.api = API.GreenAPI(
             settings.green_api_instance_id,
             settings.green_api_token
         )
-        self._message_queue = None  # Will be created in start_receiving
-        self._loop = None
-        self._processor_task = None
         logger.info(f"Green API client initialized for instance: {settings.green_api_instance_id}")
-
-    async def _message_processor(self):
-        """Background task to process messages from the queue."""
-        logger.info("🔄 Message processor task started")
-        while True:
-            try:
-                # Wait for messages in the queue
-                formatted_data = await self._message_queue.get()
-                logger.info("📨 Processing message from queue...")
-
-                try:
-                    await self.message_handler.process_message(formatted_data)
-                    logger.info("✅ Message processed successfully from queue")
-                except Exception as e:
-                    logger.error(f"❌ Error processing message from queue: {e}", exc_info=True)
-                finally:
-                    self._message_queue.task_done()
-
-            except asyncio.CancelledError:
-                logger.info("Message processor task cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Unexpected error in message processor: {e}", exc_info=True)
-
-    async def start_receiving(self):
-        """Start receiving incoming notifications from Green API."""
-        logger.info("Starting to receive notifications from Green API...")
-        # Capture the running event loop to schedule work from webhook thread
-        try:
-            self._loop = asyncio.get_running_loop()
-        except RuntimeError:
-            self._loop = None
-
-        # Create message queue
-        self._message_queue = asyncio.Queue()
-        logger.info("✅ Message queue created")
-
-        # Start background processor task
-        self._processor_task = asyncio.create_task(self._message_processor())
-        logger.info("✅ Message processor task started")
-
-        # Start receiving notifications with callback
-        self.api.webhooks.startReceivingNotifications(self._on_notification)
-
-        logger.info("✅ Green API notification receiver started")
-
-    def _on_notification(self, type_webhook: str, body: dict[str, Any]):
-        """
-        Handle incoming notification from Green API.
-
-        Args:
-            type_webhook: Type of notification (e.g., "incomingMessageReceived")
-            body: Notification body with message data
-        """
-        try:
-            logger.info(f"📩 GREEN API NOTIFICATION - Type: {type_webhook}")
-            # For quicker diagnostics, log concise highlights at INFO and full body at DEBUG
-            try:
-                highlights = {
-                    "type": type_webhook,
-                    "idMessage": body.get("idMessage"),
-                    "timestamp": body.get("timestamp"),
-                    "sender": (body.get("senderData") or {}).get("sender"),
-                    "chatId": (body.get("senderData") or {}).get("chatId"),
-                    "stateInstance": (body.get("stateInstanceData") or {}).get("stateInstance"),
-                }
-                logger.info(f"🔎 Notification highlights: {highlights}")
-            except Exception:
-                # noop – best-effort highlights only
-                pass
-            logger.debug(f"Notification body: {body}")
-
-            # Route processing based on type
-            if type_webhook == "incomingMessageReceived":
-                self._handle_incoming_message(body)
-            elif type_webhook in {"outgoingMessageReceived", "outgoingAPIMessageReceived"}:
-                logger.debug("Ignoring outgoing message notification")
-            elif type_webhook == "stateInstanceChanged":
-                state = (body.get("stateInstanceData") or {}).get("stateInstance")
-                logger.info(f"🟢 Instance state changed: {state}")
-            else:
-                logger.debug(f"Ignoring notification type: {type_webhook}")
-
-        except Exception as e:
-            logger.error(f"Error handling notification: {e}", exc_info=True)
-
-    def _handle_incoming_message(self, body: dict[str, Any]):
-        """
-        Process incoming message notification.
-
-        Args:
-            body: Message notification body from Green API
-        """
-        try:
-            # Extract message data from Green API format
-            message_data = body.get("messageData", {})
-            sender_data = body.get("senderData", {})
-
-            # Determine if this is a group chat
-            chat_id = sender_data.get("chatId", "")
-            is_group = chat_id.endswith("@g.us")
-
-            # Prefer extended/text payloads
-            text = (
-                (message_data.get("textMessageData") or {}).get("textMessage")
-                or (message_data.get("extendedTextMessageData") or {}).get("text")
-                or ""
-            )
-
-            # Convert to format expected by message_handler
-            formatted_data = {
-                "info": {
-                    "id": {"id": body.get("idMessage", "")},
-                    "messageSource": {
-                        "senderJID": sender_data.get("sender", ""),
-                        "groupJID": chat_id if is_group else "",
-                    },
-                    "timestamp": body.get("timestamp", 0),
-                    "pushName": sender_data.get("senderName", ""),
-                },
-                "message": {
-                    "conversation": text,
-                    "extendedTextMessage": message_data.get("extendedTextMessageData", {}),
-                    "imageMessage": message_data.get("imageMessageData", {}),
-                    "videoMessage": message_data.get("videoMessageData", {}),
-                    "documentMessage": message_data.get("documentMessageData", {}),
-                },
-            }
-
-            # Log parsed message
-            sender_jid = formatted_data["info"]["messageSource"]["senderJID"]
-            group_jid = formatted_data["info"]["messageSource"]["groupJID"]
-            content_preview = (formatted_data["message"]["conversation"] or "").strip()
-
-            if group_jid:
-                logger.info(f"✅ Parsed GROUP message from {sender_jid} in {group_jid}: '{content_preview[:120]}'")
-            else:
-                logger.info(f"✅ Parsed DIRECT message from {sender_jid}: '{content_preview[:120]}'")
-
-            if not formatted_data["info"]["id"]["id"]:
-                logger.warning("⚠️ Message without idMessage; skipping")
-                return
-
-            # Add message to queue using thread-safe method
-            if self._loop is None or self._message_queue is None:
-                logger.warning("⚠️ Event loop or message queue not initialized; message will not be processed")
-                return
-
-            logger.info("📬 Adding message to processing queue...")
-
-            # Use call_soon_threadsafe to add item to queue from webhook thread
-            def add_to_queue():
-                try:
-                    self._message_queue.put_nowait(formatted_data)
-                    logger.info("✅ Message added to queue successfully")
-                except Exception as e:
-                    logger.error(f"❌ Failed to add message to queue: {e}", exc_info=True)
-
-            self._loop.call_soon_threadsafe(add_to_queue)
-
-        except Exception as e:
-            logger.error(f"Error processing incoming message: {e}", exc_info=True)
 
     def send_message(self, phone: str, message: str) -> dict[str, Any]:
         """
@@ -217,21 +50,3 @@ class GreenAPIClient:
         except Exception as e:
             logger.error(f"❌ Failed to send message to {phone}: {e}")
             raise
-
-    async def stop(self):
-        """Stop receiving notifications."""
-        try:
-            logger.info("Stopping Green API client...")
-
-            # Cancel processor task
-            if self._processor_task:
-                self._processor_task.cancel()
-                try:
-                    await self._processor_task
-                except asyncio.CancelledError:
-                    pass
-                logger.info("Message processor task stopped")
-
-            logger.info("Green API client stopped")
-        except Exception as e:
-            logger.error(f"Error stopping Green API client: {e}")
