@@ -25,6 +25,12 @@ class GreenAPIClient:
     async def start_receiving(self):
         """Start receiving incoming notifications from Green API."""
         logger.info("Starting to receive notifications from Green API...")
+        # Capture the running event loop to schedule work from webhook thread
+        import asyncio
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
 
         # Start receiving notifications with callback
         self.api.webhooks.startReceivingNotifications(self._on_notification)
@@ -128,9 +134,20 @@ class GreenAPIClient:
                 logger.warning("⚠️ Message without idMessage; skipping")
                 return
 
-            # Process message through existing handler
+            # Process message through existing handler on the main asyncio loop
             import asyncio
-            asyncio.create_task(self.message_handler.process_message(formatted_data))
+            if self._loop is None:
+                try:
+                    self._loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    self._loop = None
+
+            if self._loop is not None:
+                asyncio.run_coroutine_threadsafe(
+                    self.message_handler.process_message(formatted_data), self._loop
+                )
+            else:
+                logger.warning("⚠️ No asyncio loop captured; message will not be processed")
 
         except Exception as e:
             logger.error(f"Error processing incoming message: {e}", exc_info=True)
