@@ -1,16 +1,28 @@
 """FastAPI application for Green API webhooks."""
 import logging
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from commands import CommandHandler
+from config import settings
 from database import close_db, init_db
 from green_api_client import GreenAPIClient
 from message_handler import MessageHandler
 from scheduler import SummaryScheduler
 from summarizer import SummaryGenerator
+
+# Configure logging to ensure all logs are visible
+logging.basicConfig(
+    level=settings.log_level,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ],
+    force=True,  # Override any existing configuration
+)
 
 logger = logging.getLogger(__name__)
 
