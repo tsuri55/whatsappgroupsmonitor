@@ -38,6 +38,7 @@ def normalize_jid(jid: str) -> str:
         return jid
 
     # Extract number part (remove any suffix and + prefix)
+    # Green API requires numbers without '+' prefix
     number = jid.split("@")[0].lstrip("+")
 
     # Group JIDs typically contain '-' and end with @g.us

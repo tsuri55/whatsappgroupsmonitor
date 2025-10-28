@@ -39,6 +39,11 @@ class GreenAPIClient:
             chat_id = phone.split("@")[0] if "@" in phone else phone
             logger.debug(f"📤 After split: '{chat_id}'")
 
+            # Remove '+' prefix if present (Green API doesn't accept it)
+            if chat_id.startswith("+"):
+                chat_id = chat_id[1:]
+                logger.debug(f"📤 Removed '+' prefix: '{chat_id}'")
+
             # Ensure phone number has @c.us suffix for Green API
             if not chat_id.endswith("@c.us") and not chat_id.endswith("@g.us"):
                 chat_id = f"{chat_id}@c.us"
