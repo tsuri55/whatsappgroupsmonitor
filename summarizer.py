@@ -33,8 +33,8 @@ class SummaryGenerator:
         logger.info(f"Initialized summary generator with model: {settings.gemini_llm_model}")
 
     @retry(
-        wait=wait_random_exponential(min=settings.retry_min_wait, max=settings.retry_max_wait),
-        stop=stop_after_attempt(settings.max_retry_attempts),
+        wait=wait_random_exponential(min=1, max=30),
+        stop=stop_after_attempt(3),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
