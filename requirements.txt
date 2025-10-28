@@ -7,7 +7,7 @@ sqlmodel==0.0.22
 aiosqlite==0.20.0
 
 # Green API WhatsApp
-whatsapp-api-client-python==0.0.122
+whatsapp-api-client-python==0.0.49
 
 # Google Gemini AI
 google-generativeai==0.8.3
