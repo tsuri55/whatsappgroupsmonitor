@@ -120,11 +120,13 @@ class MessageHandler:
                 logger.warning("Message without ID received")
                 return None
 
-            # Extract group JID (may be empty for direct messages)
-            group_jid = info.get("messageSource", {}).get("groupJID", "")
+            # Extract group JID and name (may be empty for direct messages)
+            message_source = info.get("messageSource", {})
+            group_jid = message_source.get("groupJID", "")
+            group_name = message_source.get("groupName", "") if group_jid else None
 
             # Extract sender info
-            sender_jid = info.get("messageSource", {}).get("senderJID", "")
+            sender_jid = message_source.get("senderJID", "")
             sender_name = info.get("pushName", "")
 
             # Extract message content
@@ -155,6 +157,7 @@ class MessageHandler:
             return WhatsAppMessage(
                 message_id=message_id,
                 group_jid=normalize_jid(group_jid) if group_jid else "",
+                group_name=group_name,
                 sender_jid=normalize_jid(sender_jid),
                 sender_name=sender_name,
                 content=content,
@@ -216,3 +219,9 @@ class MessageHandler:
             session.add(group)
             await session.commit()
             logger.info(f"Created new group record: {group_name} ({group_jid})")
+        elif group.group_name is None and group_name:
+            # Update group name if it was missing
+            group.group_name = group_name
+            session.add(group)
+            await session.commit()
+            logger.info(f"Updated group name: {group_name} ({group_jid})")

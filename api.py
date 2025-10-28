@@ -123,6 +123,7 @@ async def webhook(request: Request):
                     "messageSource": {
                         "senderJID": sender_data.get("sender", ""),
                         "groupJID": sender_data.get("chatId", "") if sender_data.get("chatId", "").endswith("@g.us") else "",
+                        "groupName": sender_data.get("chatName", ""),  # Add group/chat name
                     },
                     "timestamp": data.get("timestamp", 0),
                     "pushName": sender_data.get("senderName", ""),
