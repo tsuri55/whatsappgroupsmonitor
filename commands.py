@@ -86,7 +86,15 @@ class CommandHandler:
 
             # Generate and send summaries
             logger.info("🤖 Starting AI summary generation for all groups...")
-            await self.summary_generator.generate_and_send_daily_summaries(force=True)
+            success = await self.summary_generator.generate_and_send_daily_summaries(force=True)
+
+            if not success:
+                # No messages to summarize - send notification
+                logger.info("📤 No messages found - sending notification to user")
+                self.green_api_client.send_message(
+                    phone=sender_jid,
+                    message="ℹ️ אין הודעות חדשות לסכם היום בקבוצות."
+                )
 
             logger.info("✅ On-demand summary completed successfully")
 
@@ -98,7 +106,7 @@ class CommandHandler:
                 logger.info(f"📤 Sending error notification to {sender_jid}")
                 self.green_api_client.send_message(
                     phone=sender_jid,
-                    message=f"❌ Error generating summary: {str(e)}"
+                    message=f"❌ שגיאה ביצירת הסיכום: {str(e)}"
                 )
             except Exception as send_error:
                 logger.error(f"❌ Failed to send error notification: {send_error}")

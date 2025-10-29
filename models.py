@@ -41,6 +41,26 @@ class Group(SQLModel, table=True):
         result = await session.exec(query)
         return list(result.all())
 
+    async def get_messages_today(
+        self, session: AsyncSession, exclude_sender_jid: Optional[str] = None
+    ) -> list["Message"]:
+        """Get all messages from today (00:00 to now)."""
+        # Get start of today at 00:00
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = (
+            select(Message)
+            .where(Message.group_jid == self.group_jid)
+            .where(Message.timestamp >= today_start)
+            .order_by(Message.timestamp.asc())
+        )
+
+        if exclude_sender_jid:
+            query = query.where(Message.sender_jid != exclude_sender_jid)
+
+        result = await session.exec(query)
+        return list(result.all())
+
 
 class Message(SQLModel, table=True):
     """WhatsApp message model."""

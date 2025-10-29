@@ -79,8 +79,14 @@ ONLY answer with the summary, no other text.
 
             # For Green API, we don't have a direct way to get our JID
             # We'll exclude messages based on a pattern or skip this for now
-            logger.debug(f"🔍 Fetching messages since last summary for {group.group_name}...")
-            messages = await group.get_messages_since_last_summary(session, exclude_sender_jid=None)
+            if force:
+                # When force=True (sikum command), get ALL messages from today (00:00 to now)
+                logger.debug(f"🔍 Fetching all messages from today for {group.group_name}...")
+                messages = await group.get_messages_today(session, exclude_sender_jid=None)
+            else:
+                # For scheduled summaries, only get messages since last summary
+                logger.debug(f"🔍 Fetching messages since last summary for {group.group_name}...")
+                messages = await group.get_messages_since_last_summary(session, exclude_sender_jid=None)
 
             # Check if we have any messages
             if len(messages) == 0:
@@ -151,11 +157,14 @@ ONLY answer with the summary, no other text.
             logger.error(f"Error in summarize_group for {group.group_name}: {e}", exc_info=True)
             return False
 
-    async def generate_and_send_daily_summaries(self, force: bool = False):
+    async def generate_and_send_daily_summaries(self, force: bool = False) -> bool:
         """Generate summaries for all managed groups and send consolidated summary.
 
         Args:
             force: When True, bypass minimum message threshold and attempt summaries anyway.
+
+        Returns:
+            bool: True if summaries were generated and sent, False otherwise.
         """
         logger.info("=" * 80)
         logger.info("📊 DAILY SUMMARY GENERATION STARTED")
@@ -169,7 +178,7 @@ ONLY answer with the summary, no other text.
 
             if not groups:
                 logger.warning("⚠️ No managed groups found in database")
-                return
+                return False
 
             logger.info(f"📋 Found {len(groups)} managed groups to process:")
             for idx, group in enumerate(groups, 1):
@@ -215,9 +224,9 @@ ONLY answer with the summary, no other text.
             if not summaries_data:
                 if force:
                     logger.info("ℹ️ Force mode: no summaries produced; nothing to send")
-                    return
+                    return False
                 logger.info("ℹ️ No summaries to send (all groups had insufficient messages)")
-                return
+                return False
 
             # Create consolidated summary message
             logger.info("")
@@ -255,13 +264,16 @@ ONLY answer with the summary, no other text.
 
                 await session.commit()
                 logger.info("✅ Database updated successfully")
+                return True
 
             except Exception as e:
                 logger.error(f"❌ Failed to send daily summary: {e}", exc_info=True)
+                return False
 
         logger.info("=" * 80)
         logger.info("📊 DAILY SUMMARY GENERATION COMPLETED")
         logger.info("=" * 80)
+        return True
 
     def _format_consolidated_summary(self, summaries_data: list[dict]) -> str:
         """Format consolidated summary message."""
