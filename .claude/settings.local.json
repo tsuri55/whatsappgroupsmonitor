@@ -1,19 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init:*)",
-      "Bash(git remote add:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: WhatsApp Groups Monitor\n\n- Real-time message monitoring from WhatsApp groups\n- PostgreSQL with pgvector for semantic search\n- Google Gemini embeddings (gemini-embedding-001)\n- AI-generated summaries with Gemini Flash LLM\n- Scheduled daily summaries at 20:00 UTC+3\n- On-demand summaries via \"sikum\" command\n- Railway deployment ready\n- Docker Compose setup for local development\n- Comprehensive documentation (README, SETUP, PRD)\n\n🤖 Generated with Claude Code\nEOF\n)\")",
-      "Bash(git branch:*)",
-      "Bash(git push:*)",
       "Bash(git commit:*)",
-      "Bash(del \"C:\\Users\\pc\\Desktop\\wa-groups-monitor\\embeddings.py\")",
-      "Bash(git rm:*)",
-      "WebFetch(domain:github.com)",
-      "Bash(curl:*)",
-      "Bash(npm install:*)",
-      "WebFetch(domain:green-api.com)"
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(sqlite3:*)",
+      "Bash(del:*)",
+      "Bash(git push:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
