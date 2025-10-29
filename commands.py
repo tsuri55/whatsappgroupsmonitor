@@ -80,7 +80,7 @@ class CommandHandler:
             logger.info(f"📤 Sending acknowledgment to {sender_jid}")
             self.green_api_client.send_message(
                 phone=sender_jid,
-                message="⏳ Generating summary for all groups... This may take a moment."
+                message="⏳ מייצר סיכום לכל הקבוצות... זה עשוי לקחת רגע."
             )
             logger.info("✅ Acknowledgment sent")
 
