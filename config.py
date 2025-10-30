@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     minimum_messages_for_summary: int = 15
     max_messages_per_summary: int = 1000
     port: int = 8000  # Port for FastAPI webhook server
+    summary_keywords: str = "sikum,סיכום,summary,summarize"  # Comma-separated keywords that trigger summary
 
 
 # Global settings instance

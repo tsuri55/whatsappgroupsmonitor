@@ -17,17 +17,19 @@ class CommandHandler:
         self.summary_generator = summary_generator
         self.authorized_phone = normalize_jid(settings.summary_recipient_phone)
 
-        # Command keywords (case-insensitive)
-        self.commands = {
-            "sikum": self._handle_sikum_command,
-            "/summarize": self._handle_sikum_command,
-            "/summary": self._handle_sikum_command,
-            "summary": self._handle_sikum_command,
-            "summarize": self._handle_sikum_command,
-            "stats": self._handle_stats_command,
-        }
+        # Build command keywords dynamically from environment variable
+        self.commands = {}
+
+        # Add summary keywords from environment variable
+        summary_keywords = [kw.strip() for kw in settings.summary_keywords.split(",") if kw.strip()]
+        for keyword in summary_keywords:
+            self.commands[keyword.lower()] = self._handle_sikum_command
+
+        # Add other commands
+        self.commands["stats"] = self._handle_stats_command
 
         logger.info(f"Command handler initialized. Authorized user: {self.authorized_phone}")
+        logger.info(f"Summary keywords: {', '.join(summary_keywords)}")
 
     async def process_command(self, sender_jid: str, message_text: str) -> bool:
         """
