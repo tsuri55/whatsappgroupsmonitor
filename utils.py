@@ -14,7 +14,7 @@ def format_messages_for_summary(messages: list[Message]) -> str:
     for msg in messages:
         timestamp = msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         sender = msg.sender_name or msg.sender_jid.split("@")[0]
-        content = msg.content
+        content = msg.get_content()  # Decrypt content if encrypted
 
         formatted_lines.append(f"[{timestamp}] {sender}: {content}")
 

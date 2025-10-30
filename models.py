@@ -5,6 +5,8 @@ from typing import Optional
 from sqlmodel import Field, Relationship, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from encryption import get_encryption_manager
+
 
 class Group(SQLModel, table=True):
     """WhatsApp group model."""
@@ -63,7 +65,7 @@ class Group(SQLModel, table=True):
 
 
 class Message(SQLModel, table=True):
-    """WhatsApp message model."""
+    """WhatsApp message model with encrypted content."""
 
     __tablename__ = "messages"
 
@@ -72,7 +74,7 @@ class Message(SQLModel, table=True):
     group_jid: str = Field(foreign_key="groups.group_jid", index=True)
     sender_jid: str = Field(index=True, description="Sender's WhatsApp JID")
     sender_name: Optional[str] = Field(default=None, description="Sender's display name")
-    content: str = Field(description="Message content")
+    content: str = Field(description="Message content (encrypted if encryption enabled)")
     message_type: str = Field(default="text", description="Message type (text, image, etc.)")
     timestamp: datetime = Field(default_factory=datetime.now, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
@@ -80,18 +82,38 @@ class Message(SQLModel, table=True):
     # Relationships
     group: Optional[Group] = Relationship(back_populates="messages")
 
+    def set_content(self, plain_text: str) -> None:
+        """Set message content (will be encrypted before storage)."""
+        encryption = get_encryption_manager()
+        self.content = encryption.encrypt(plain_text)
+
+    def get_content(self) -> str:
+        """Get decrypted message content."""
+        encryption = get_encryption_manager()
+        return encryption.decrypt(self.content)
+
 
 class SummaryLog(SQLModel, table=True):
-    """Log of generated summaries."""
+    """Log of generated summaries with encrypted summary text."""
 
     __tablename__ = "summary_logs"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     group_jid: str = Field(foreign_key="groups.group_jid", index=True)
-    summary_text: str = Field(description="Generated summary")
+    summary_text: str = Field(description="Generated summary (encrypted if encryption enabled)")
     message_count: int = Field(description="Number of messages summarized")
     start_time: datetime = Field(description="Start of summarized period")
     end_time: datetime = Field(description="End of summarized period")
     sent_successfully: bool = Field(default=False, description="Whether summary was sent")
     error_message: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.now)
+
+    def set_summary_text(self, plain_text: str) -> None:
+        """Set summary text (will be encrypted before storage)."""
+        encryption = get_encryption_manager()
+        self.summary_text = encryption.encrypt(plain_text)
+
+    def get_summary_text(self) -> str:
+        """Get decrypted summary text."""
+        encryption = get_encryption_manager()
+        return encryption.decrypt(self.summary_text)

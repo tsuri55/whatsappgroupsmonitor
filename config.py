@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     port: int = 8000  # Port for FastAPI webhook server
     summary_keywords: str = "sikum,סיכום,summary,summarize"  # Comma-separated keywords that trigger summary
 
+    # Security Configuration
+    encryption_key: str = ""  # Encryption key for sensitive data (leave empty to disable encryption)
+    webhook_secret: str = ""  # Secret token for webhook authentication (leave empty to disable auth)
+
 
 # Global settings instance
 settings = Settings()

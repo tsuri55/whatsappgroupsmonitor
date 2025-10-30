@@ -27,3 +27,6 @@ pytz==2024.1
 structlog==24.4.0
 packaging>=21.0
 tenacity==9.0.0
+
+# Security & Encryption
+cryptography==43.0.3

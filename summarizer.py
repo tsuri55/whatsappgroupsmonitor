@@ -121,12 +121,14 @@ ONLY answer with the summary, no other text.
                 # Save summary log
                 summary_log = SummaryLog(
                     group_jid=group.group_jid,
-                    summary_text=summary,
+                    summary_text="",  # Will be set via set_summary_text() for encryption
                     message_count=len(messages),
                     start_time=start_time,
                     end_time=end_time,
                     sent_successfully=False,
                 )
+                # Set encrypted summary text
+                summary_log.set_summary_text(summary)
                 session.add(summary_log)
                 await session.commit()
 
@@ -207,7 +209,7 @@ ONLY answer with the summary, no other text.
                         summaries_data.append(
                             {
                                 "group_name": group.group_name,
-                                "summary": summary_log.summary_text,
+                                "summary": summary_log.get_summary_text(),  # Decrypt summary text
                                 "message_count": summary_log.message_count,
                                 "summary_log_id": summary_log.id,
                             }

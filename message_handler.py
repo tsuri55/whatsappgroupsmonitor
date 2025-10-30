@@ -190,10 +190,12 @@ class MessageHandler:
             group_jid=wa_message.group_jid,
             sender_jid=wa_message.sender_jid,
             sender_name=wa_message.sender_name,
-            content=wa_message.content,
+            content="",  # Will be set via set_content() for encryption
             message_type=wa_message.message_type,
             timestamp=datetime.fromtimestamp(wa_message.timestamp),
         )
+        # Set encrypted content
+        message.set_content(wa_message.content)
 
         session.add(message)
         await session.commit()
