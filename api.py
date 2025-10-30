@@ -113,7 +113,7 @@ async def health():
 @app.post("/webhook")
 async def webhook(
     request: Request,
-    x_webhook_secret: str = Header(None, alias="X-Webhook-Secret")
+    authorization: str = Header(None)
 ):
     """
     Webhook endpoint for Green API notifications.
@@ -124,18 +124,18 @@ async def webhook(
 
     Security:
     - Set WEBHOOK_SECRET environment variable to enable authentication
-    - Send the secret in the X-Webhook-Secret header with each request
+    - In Green API, set "Webhook authorization header" to your WEBHOOK_SECRET value
     """
     try:
         # Validate webhook secret if configured
         if settings.webhook_secret:
-            if not x_webhook_secret:
-                logger.warning("🚫 Webhook request rejected: Missing X-Webhook-Secret header")
+            if not authorization:
+                logger.warning("🚫 Webhook request rejected: Missing Authorization header")
                 raise HTTPException(
                     status_code=401,
-                    detail="Missing X-Webhook-Secret header"
+                    detail="Missing Authorization header"
                 )
-            if x_webhook_secret != settings.webhook_secret:
+            if authorization != settings.webhook_secret:
                 logger.warning("🚫 Webhook request rejected: Invalid secret")
                 raise HTTPException(
                     status_code=403,

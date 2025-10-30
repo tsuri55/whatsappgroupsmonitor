@@ -116,12 +116,11 @@ The application will:
 
 In your Green API dashboard:
 1. Go to Settings → Webhooks
-2. Set webhook URL: `https://your-domain.com/webhook`
-3. **If using webhook authentication**: Add custom header:
-   - Header name: `X-Webhook-Secret`
-   - Header value: (your `WEBHOOK_SECRET` from `.env`)
-4. Enable "Incoming Messages" notifications
-5. Save the configuration
+2. Set **Webhook Url**: `https://your-domain.com/webhook`
+3. **If using webhook authentication**: Set **Webhook authorization header** to your `WEBHOOK_SECRET` value (the same value from your `.env` file)
+4. Enable "Receive webhooks on incoming messages and files" toggle
+5. Enable other webhook types as needed
+6. Save the configuration
 
 ## Usage
 
@@ -219,9 +218,7 @@ WEBHOOK_SECRET=your_generated_secret_here
 
 **Configure Green API**:
 1. In Green API dashboard → Settings → Webhooks
-2. Add custom header:
-   - Name: `X-Webhook-Secret`
-   - Value: (your WEBHOOK_SECRET)
+2. Set **Webhook authorization header** field to your `WEBHOOK_SECRET` value
 
 **Important Notes**:
 - Without this, anyone with your webhook URL can send fake messages
