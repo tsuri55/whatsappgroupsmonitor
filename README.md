@@ -8,9 +8,9 @@ An intelligent WhatsApp group monitoring system that captures messages from all 
 - **Smart Storage**: Stores messages in PostgreSQL or SQLite with group and sender information
 - **AI Summaries**: Generates intelligent summaries using Google Gemini with automatic language detection
 - **Scheduled Delivery**: Sends consolidated daily summaries at a configurable time (default: 20:00 Asia/Jerusalem)
-- **On-Demand Summaries**: Request instant summaries by sending "sikum" to the bot
+- **On-Demand Summaries**: Request instant summaries with customizable keywords (default: "sikum", "סיכום", "summary", "summarize")
 - **Web Interface**: View groups and messages in a Hebrew-language web dashboard
-- **Command System**: Supports commands like "sikum" (summary) and "stats" for authorized users
+- **Command System**: Configurable command keywords for summary and stats commands
 
 ## Architecture
 
@@ -84,6 +84,7 @@ SUMMARY_RECIPIENT_PHONE=+1234567890
 # Optional settings
 SUMMARY_SCHEDULE_HOUR=20
 SUMMARY_SCHEDULE_TIMEZONE=Asia/Jerusalem
+SUMMARY_KEYWORDS=sikum,סיכום,summary,summarize
 LOG_LEVEL=INFO
 ```
 
@@ -133,7 +134,12 @@ Bot: [Sends consolidated summary of all today's messages from all groups]
 
 ### Available Commands
 
-- `sikum`, `summary`, `/summarize` - Generate summary of today's messages from all groups
+**Summary Commands** (configurable via `SUMMARY_KEYWORDS`):
+- Default keywords: `sikum`, `סיכום`, `summary`, `summarize`
+- Action: Generate summary of today's messages from all groups
+- Customize by setting `SUMMARY_KEYWORDS` in your `.env` file
+
+**Other Commands**:
 - `stats` - Show group and message statistics
 
 **Authorization**: Only the phone number in `SUMMARY_RECIPIENT_PHONE` can use commands.
@@ -160,6 +166,7 @@ The system automatically sends daily summaries at the configured time. The summa
 | `GEMINI_LLM_MODEL` | Gemini model name | `models/gemini-flash-latest` |
 | `SUMMARY_SCHEDULE_HOUR` | Hour to send summaries (0-23) | `20` |
 | `SUMMARY_SCHEDULE_TIMEZONE` | Timezone for scheduling | `Asia/Jerusalem` |
+| `SUMMARY_KEYWORDS` | Comma-separated keywords that trigger summary | `sikum,סיכום,summary,summarize` |
 | `MINIMUM_MESSAGES_FOR_SUMMARY` | Min messages to generate summary | `15` |
 | `MAX_MESSAGES_PER_SUMMARY` | Max messages per summary | `1000` |
 | `LOG_LEVEL` | Logging level | `INFO` |
@@ -317,7 +324,8 @@ wa-groups-monitor/
 ### Commands not working
 - Verify sender phone matches `SUMMARY_RECIPIENT_PHONE`
 - Send commands as direct message (not in group)
-- Check command spelling: "sikum", "stats"
+- Check command spelling matches `SUMMARY_KEYWORDS` setting (default: "sikum", "סיכום", "summary", "summarize")
+- For stats command, use: "stats"
 
 ## Development
 
